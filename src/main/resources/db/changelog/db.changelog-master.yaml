@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/2026/01/001-create-users-table.yaml
+  - include:
+      file: db/changelog/2026/01/002-create-authorities-table.yaml
+  - include:
+      file: db/changelog/2026/01/003-create-audit-logs-table.yaml
+  - include:
+      file: db/changelog/2026/01/004-create-blocks-metadata-table.yaml
+  - include:
+      file: db/changelog/2026/01/005-create-transactions-metadata-table.yaml

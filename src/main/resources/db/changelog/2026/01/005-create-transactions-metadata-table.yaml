@@ -1,0 +1,111 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1767991560818-1
+      author: laplas7
+      objectQuotingStrategy: QUOTE_ONLY_RESERVED_WORDS
+      changes:
+        - createTable:
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_transactions_metadata
+                  name: id
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: sender_id
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: transaction_type
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: status
+                  type: VARCHAR(255)
+              - column:
+                  name: block_hash
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: payload_hash
+                  type: VARCHAR(255)
+              - column:
+                  name: content_type
+                  type: VARCHAR(255)
+              - column:
+                  name: content_size
+                  type: BIGINT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: timestamp
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: leveldb_key
+                  type: VARCHAR(255)
+            tableName: transactions_metadata
+  - changeSet:
+      id: 1767991560818-2
+      author: laplas7
+      objectQuotingStrategy: QUOTE_ONLY_RESERVED_WORDS
+      changes:
+        - createIndex:
+            columns:
+              - column:
+                  name: block_hash
+            indexName: idx_block_hash
+            tableName: transactions_metadata
+  - changeSet:
+      id: 1767991560818-3
+      author: laplas7
+      objectQuotingStrategy: QUOTE_ONLY_RESERVED_WORDS
+      changes:
+        - createIndex:
+            columns:
+              - column:
+                  name: content_type
+            indexName: idx_content_type
+            tableName: transactions_metadata
+  - changeSet:
+      id: 1767991560818-4
+      author: laplas7
+      objectQuotingStrategy: QUOTE_ONLY_RESERVED_WORDS
+      changes:
+        - createIndex:
+            columns:
+              - column:
+                  name: sender_id
+            indexName: idx_sender
+            tableName: transactions_metadata
+  - changeSet:
+      id: 1767991560818-5
+      author: laplas7
+      objectQuotingStrategy: QUOTE_ONLY_RESERVED_WORDS
+      changes:
+        - createIndex:
+            columns:
+              - column:
+                  name: status
+            indexName: idx_transaction_status
+            tableName: transactions_metadata
+  - changeSet:
+      id: 1767991560818-6
+      author: laplas7
+      objectQuotingStrategy: QUOTE_ONLY_RESERVED_WORDS
+      changes:
+        - createIndex:
+            columns:
+              - column:
+                  name: timestamp
+            indexName: idx_transaction_timestamp
+            tableName: transactions_metadata
+

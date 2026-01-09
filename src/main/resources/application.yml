@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: blockchain
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/blockchain_db
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    enabled: true
+
+
+leveldb:
+  path: ./data/leveldb
+  create-if-missing: true
+  cache-size: 104857600

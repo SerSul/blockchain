@@ -1,0 +1,58 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-create-authorities-table
+      author: dmitri
+      changes:
+        - createTable:
+            tableName: authorities
+            columns:
+              - column:
+                  name: address
+                  type: VARCHAR(66)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: public_key
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: private_key_encrypted
+                  type: TEXT
+              - column:
+                  name: name
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_active
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: added_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: added_by
+                  type: VARCHAR(66)
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            indexName: idx_is_active
+            tableName: authorities
+            columns:
+              - column:
+                  name: is_active
+
+        - addForeignKeyConstraint:
+            baseTableName: authorities
+            baseColumnNames: added_by
+            constraintName: fk_authorities_added_by
+            referencedTableName: users
+            referencedColumnNames: address
+            onDelete: RESTRICT

@@ -1,0 +1,113 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1767991535961-1
+      author: laplas7
+      objectQuotingStrategy: QUOTE_ONLY_RESERVED_WORDS
+      changes:
+        - createTable:
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_blocks_metadata
+                  name: hash
+                  type: VARCHAR(255)
+              - column:
+                  name: previous_hash
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: height
+                  type: INT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: merkle_root
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: validator_address
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: validator_signature
+                  type: TEXT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: transaction_count
+                  type: INT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: status
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: timestamp
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: leveldb_key
+                  type: VARCHAR(255)
+            tableName: blocks_metadata
+  - changeSet:
+      id: 1767991535961-2
+      author: laplas7
+      objectQuotingStrategy: QUOTE_ONLY_RESERVED_WORDS
+      changes:
+        - addUniqueConstraint:
+            columnNames: height
+            constraintName: uc_blocks_metadata_height
+            tableName: blocks_metadata
+  - changeSet:
+      id: 1767991535961-3
+      author: laplas7
+      objectQuotingStrategy: QUOTE_ONLY_RESERVED_WORDS
+      changes:
+        - createIndex:
+            columns:
+              - column:
+                  name: height
+            indexName: idx_height
+            tableName: blocks_metadata
+  - changeSet:
+      id: 1767991535961-4
+      author: laplas7
+      objectQuotingStrategy: QUOTE_ONLY_RESERVED_WORDS
+      changes:
+        - createIndex:
+            columns:
+              - column:
+                  name: status
+            indexName: idx_block_status
+            tableName: blocks_metadata
+  - changeSet:
+      id: 1767991535961-5
+      author: laplas7
+      objectQuotingStrategy: QUOTE_ONLY_RESERVED_WORDS
+      changes:
+        - createIndex:
+            columns:
+              - column:
+                  name: timestamp
+            indexName: idx_block_timestamp
+            tableName: blocks_metadata
+  - changeSet:
+      id: 1767991535961-6
+      author: laplas7
+      objectQuotingStrategy: QUOTE_ONLY_RESERVED_WORDS
+      changes:
+        - createIndex:
+            columns:
+              - column:
+                  name: validator_address
+            indexName: idx_validator
+            tableName: blocks_metadata
+
