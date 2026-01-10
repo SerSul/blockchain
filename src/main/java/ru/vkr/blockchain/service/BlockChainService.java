@@ -14,10 +14,8 @@ import ru.vkr.blockchain.domain.model.Block;
 import ru.vkr.blockchain.domain.model.Transaction;
 import ru.vkr.blockchain.domain.model.enums.BlockStatus;
 import ru.vkr.blockchain.service.domain.BlockService;
-import ru.vkr.blockchain.service.domain.TransactionService;
 import ru.vkr.blockchain.service.entity.BlockMetadataService;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -45,7 +43,7 @@ public class BlockChainService {
     private volatile Block latestBlock;
 
     @Getter
-    private final int HOT_BLOCKS_SIZE = 100;
+    private final int HOT_BLOCKS_SIZE = 100; // todo вынести в переменные окружения
 
     @Getter
     private final LinkedHashMap<String, Block> hotBlocksCache = new LinkedHashMap<>(HOT_BLOCKS_SIZE, 0.75f, true) {

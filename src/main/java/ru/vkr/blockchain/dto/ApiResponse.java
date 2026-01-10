@@ -13,25 +13,29 @@ import java.time.LocalDateTime;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ApiResponse<T> {
 
-    private Boolean error;
+    private boolean success;
     private String message;
     private T data;
     private LocalDateTime timestamp;
 
     // Success response
     public static <T> ApiResponse<T> success(T data) {
-        return new ApiResponse<>(false, "Success", data, LocalDateTime.now());
+        return new ApiResponse<>(true, "Success", data, LocalDateTime.now());
     }
 
     public static <T> ApiResponse<T> success(String message, T data) {
-        return new ApiResponse<>(false, message, data, LocalDateTime.now());
+        return new ApiResponse<>(true, message, data, LocalDateTime.now());
+    }
+
+    public static <T> ApiResponse<T> success() {
+        return new ApiResponse<>(true, null, null, LocalDateTime.now());
     }
 
     public static <T> ApiResponse<T> error(String message) {
-        return new ApiResponse<>(true, message, null, LocalDateTime.now());
+        return new ApiResponse<>(false, message, null, LocalDateTime.now());
     }
 
     public static <T> ApiResponse<T> error(String message, T data) {
-        return new ApiResponse<>(true, message, data, LocalDateTime.now());
+        return new ApiResponse<>(false, message, data, LocalDateTime.now());
     }
 }

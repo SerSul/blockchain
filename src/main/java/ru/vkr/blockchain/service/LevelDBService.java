@@ -42,8 +42,7 @@ public class LevelDBService {
     }
 
     public void batchWrite(Map<String, byte[]> operations) {
-        WriteBatch batch = levelDB.createWriteBatch();
-        try {
+        try (WriteBatch batch = levelDB.createWriteBatch()) {
             operations.forEach((key, value) -> {
                 if (value != null) {
                     batch.put(key.getBytes(), value);
@@ -53,12 +52,8 @@ public class LevelDBService {
             });
             levelDB.write(batch);
             log.debug("Batch write completed: {} operations", operations.size());
-        } finally {
-            try {
-                batch.close();
-            } catch (IOException e) {
-                log.error("Error closing batch", e);
-            }
+        } catch (IOException e) {
+            log.error("Error closing batch", e);
         }
     }
 
@@ -83,7 +78,7 @@ public class LevelDBService {
         return keys;
     }
 
-    public Map<String, byte[]> getEntriesByPrefix(String prefix) {
+    public Map<String, byte[]> scanPrefix(String prefix) {
         Map<String, byte[]> entries = new java.util.HashMap<>();
         try (DBIterator iterator = levelDB.iterator()) {
             byte[] prefixBytes = prefix.getBytes();
