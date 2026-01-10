@@ -4,6 +4,7 @@ package ru.vkr.blockchain.service.domain;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.vkr.blockchain.domain.model.Block;
+import ru.vkr.blockchain.exception.storage.StorageException;
 import ru.vkr.blockchain.repository.BlockRepository;
 
 import java.util.List;
@@ -37,7 +38,7 @@ public class BlockService {
         try {
             blockRepository.save(block);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new StorageException(e.getMessage());
         }
     }
 

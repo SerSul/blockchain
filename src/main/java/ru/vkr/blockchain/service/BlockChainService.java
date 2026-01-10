@@ -2,6 +2,7 @@ package ru.vkr.blockchain.service;
 
 
 import jakarta.annotation.PostConstruct;
+import jakarta.transaction.Transactional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -11,9 +12,14 @@ import org.springframework.util.CollectionUtils;
 import ru.vkr.blockchain.domain.entity.BlockMetadata;
 import ru.vkr.blockchain.domain.model.Block;
 import ru.vkr.blockchain.domain.model.Transaction;
+import ru.vkr.blockchain.domain.model.enums.BlockStatus;
 import ru.vkr.blockchain.service.domain.BlockService;
+import ru.vkr.blockchain.service.domain.TransactionService;
 import ru.vkr.blockchain.service.entity.BlockMetadataService;
 
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,6 +38,7 @@ public class BlockChainService {
 
     private final BlockService blockService;
     private final BlockMetadataService blockMetadataService;
+    private final CryptoService cryptoService;
 
     @Getter
     @Setter
@@ -87,5 +94,24 @@ public class BlockChainService {
                 });
     }
 
+    @Transactional
+    public Block createGenesisBlock(String validatorAddress) {
+        if (latestBlock != null) {
+            throw new IllegalStateException("Genesis block already exists");
+        }
+
+        Block genesis = new Block(0, "0");
+        genesis.setValidatorAddress(validatorAddress);
+        genesis.setMerkleRoot(cryptoService.calculateMerkleRoot(new ArrayList<>()));
+        genesis.setStatus(BlockStatus.FINALIZED);
+        genesis.setValidatorSignature("genesis");
+        genesis.setTimestamp(LocalDateTime.now());
+        genesis.setCurrentHash(genesis.calculateHash());
+
+        blockService.save(genesis);
+
+        log.info("Genesis block created");
+        return genesis;
+    }
 
 }
