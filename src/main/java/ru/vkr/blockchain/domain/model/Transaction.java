@@ -12,8 +12,6 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class Transaction implements Serializable {
 
     @Serial
@@ -28,29 +26,25 @@ public class Transaction implements Serializable {
     private String payload;
     private String payloadHash;
     private String contentType;
-    private Long contentSize;
 
     private String signature;
 
-    public Transaction(String senderId, String payload, String contentType, Long contentSize) {
+    public Transaction(String senderId, String payload, String contentType, TransactionType transactionType, String signature) {
         this.id = UUID.randomUUID().toString();
         this.senderId = senderId;
         this.payload = payload;
         this.payloadHash = calculatePayloadHash();
         this.contentType = contentType;
-        this.contentSize = contentSize;
-        this.transactionType = TransactionType.DATA_STORAGE;
+        this.transactionType = transactionType;
         this.status = TransactionStatus.PENDING;
         this.timestamp = LocalDateTime.now();
+        this.signature = signature;
     }
 
     /**
      * Вычисляет хэш payload
      */
     private String calculatePayloadHash() {
-        if (payload == null) {
-            return null;
-        }
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(payload.getBytes());

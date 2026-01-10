@@ -2,6 +2,7 @@ package ru.vkr.blockchain.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.bouncycastle.crypto.CryptoException;
 import org.bouncycastle.jcajce.provider.digest.SHA256;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,10 @@ import java.util.List;
 @Slf4j
 public class CryptoService {
 
+    public CryptoService() {
+        Security.addProvider(new BouncyCastleProvider());
+    }
+
     /**
      * Генерирует адрес из публичного ключа (0x + первые 40 символов SHA-256)
      */
@@ -29,6 +34,24 @@ public class CryptoService {
         String addressPart = hash.substring(0, 40);
 
         return "0x" + addressPart;
+    }
+
+    /**
+     * Генерирует адрес из публичного ключа (Base64 строка)
+     * @param publicKeyBase64 публичный ключ в Base64
+     * @return адрес вида 0x...
+     */
+    public String generateAddress(String publicKeyBase64)  {
+        if (publicKeyBase64 == null || publicKeyBase64.isBlank()) {
+            throw new RuntimeException("Public key cannot be null or empty");
+        }
+
+        try {
+            PublicKey publicKey = decodePublicKey(publicKeyBase64);
+            return generateAddress(publicKey);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to generate address from public key: " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -103,40 +126,27 @@ public class CryptoService {
         return currentLevel.getFirst();
     }
 
-
-    /**
-     * Закодировать публичный ключ в Base64
-     */
-    public String encodePublicKey(PublicKey publicKey) {
-        return Base64.getEncoder().encodeToString(publicKey.getEncoded());
-    }
-
-    /**
-     * Закодировать приватный ключ в Base64
-     */
-    public String encodePrivateKey(PrivateKey privateKey) {
-        return Base64.getEncoder().encodeToString(privateKey.getEncoded());
-    }
-
     /**
      * Декодировать публичный ключ из Base64
      */
-    public PublicKey decodePublicKey(String encoded) throws Exception {
+    public PublicKey decodePublicKey(String encoded) {
         byte[] decoded = Base64.getDecoder().decode(encoded);
         X509EncodedKeySpec spec = new X509EncodedKeySpec(decoded);
-        KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
+        try {
+            KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
 
-        return keyFactory.generatePublic(spec);
+            return keyFactory.generatePublic(spec);
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to decode public key: " + e.getMessage());
+        }
     }
 
-    /**
-     * Декодировать приватный ключ из Base64
-     */
-    public PrivateKey decodePrivateKey(String encoded) throws Exception {
-        byte[] decoded = Base64.getDecoder().decode(encoded);
-        PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(decoded);
-        KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
-
-        return keyFactory.generatePrivate(spec);
+    public boolean checkSignatureValid(String data, String signature, String creatorPublicKeyBase64) {
+        try {
+            var creatorPublicKey = decodePublicKey(creatorPublicKeyBase64);
+            return verify(data, signature, creatorPublicKey);
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
+        }
     }
 }

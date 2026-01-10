@@ -18,10 +18,6 @@ public class AccountService {
     private final AccountRepository accountRepository;
     private final CryptoService cryptoService;
 
-    private List<Account> getAllAccounts() {
-        return accountRepository.findAll();
-    }
-
     /**
      * Получает аккаунт по адресу
      */
@@ -34,46 +30,17 @@ public class AccountService {
      * Создаёт новый аккаунт
      * @param creatorPublicKeyBase64 адрес админа/валидатора
      * @param newUserPublicKeyBase64 публичный ключ нового аккаунта
-     * @param signature подпись команды
      */
     public void createAccount(
             String creatorPublicKeyBase64,
-            String newUserPublicKeyBase64,
-            String signature) throws Exception {
+            String newUserPublicKeyBase64) throws Exception {
 
-        var creatorPublicKey = cryptoService.decodePublicKey(creatorPublicKeyBase64);
-        var creatorAddress = cryptoService.generateAddress(creatorPublicKey);
+        var creatorAddress = cryptoService.generateAddress(creatorPublicKeyBase64);
+        var newUserAddress = cryptoService.generateAddress(newUserPublicKeyBase64);
 
-        var creatorAccount = accountRepository.findByAddress(creatorAddress)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Creator account not found: " + creatorPublicKeyBase64));
-
-        boolean isAdmin = creatorAccount.getAccountRoles().stream()
-                .anyMatch(role -> role == AccountRole.ADMIN || role == AccountRole.VALIDATOR);
-
-        if (!isAdmin) {
-            throw new SecurityException(
-                    "Only admins/validators can create accounts. User: " + creatorPublicKeyBase64);
-        }
-
-        var newUserPublicKey = cryptoService.decodePublicKey(newUserPublicKeyBase64);
-        var newUserAddress = cryptoService.generateAddress(newUserPublicKey);
-
-        boolean isSignatureValid = cryptoService.verify(newUserPublicKeyBase64, signature, creatorPublicKey);
-
-        if (!isSignatureValid) {
-            throw new SecurityException("Invalid signature for account creation");
-        }
-
-        if (accountRepository.findByAddress(newUserAddress).isPresent()) {
-            throw new IllegalArgumentException(
-                    "Account with this public key already exists: " + newUserAddress);
-        }
-
-        Account account = new Account(newUserAddress, newUserPublicKeyBase64);
+        Account account = new Account(newUserAddress, newUserPublicKeyBase64, creatorAddress);
         account.setAccountRoles(List.of(AccountRole.USER));
         accountRepository.save(account);
-
     }
 
     /**

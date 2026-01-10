@@ -2,22 +2,24 @@ package ru.vkr.blockchain.service;
 
 
 import jakarta.annotation.PostConstruct;
-import jakarta.transaction.Transactional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import ru.vkr.blockchain.annotations.RequireRole;
+import ru.vkr.blockchain.api.CreateTransactionRequest;
 import ru.vkr.blockchain.domain.entity.BlockMetadata;
 import ru.vkr.blockchain.domain.model.Block;
 import ru.vkr.blockchain.domain.model.Transaction;
-import ru.vkr.blockchain.domain.model.enums.BlockStatus;
+import ru.vkr.blockchain.domain.model.enums.AccountRole;
+import ru.vkr.blockchain.domain.model.enums.TransactionType;
+import ru.vkr.blockchain.repository.AccountRepository;
 import ru.vkr.blockchain.service.domain.BlockService;
+import ru.vkr.blockchain.service.domain.TransactionService;
 import ru.vkr.blockchain.service.entity.BlockMetadataService;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,6 +39,8 @@ public class BlockChainService {
     private final BlockService blockService;
     private final BlockMetadataService blockMetadataService;
     private final CryptoService cryptoService;
+    private final AccountRepository accountRepository;
+    private final TransactionService transactionService;
 
     @Getter
     @Setter
@@ -46,29 +50,17 @@ public class BlockChainService {
     private final int HOT_BLOCKS_SIZE = 100; // todo вынести в переменные окружения
 
     @Getter
-    private final LinkedHashMap<String, Block> hotBlocksCache = new LinkedHashMap<>(HOT_BLOCKS_SIZE, 0.75f, true) {
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<String, Block> eldest) {
-            return size() > HOT_BLOCKS_SIZE;
-        }
-    };
-
-    @Getter
-    private final ConcurrentHashMap<Integer, String> heightToHashCache = new ConcurrentHashMap<>();
-
-    @Getter
     private final ConcurrentHashMap<String, Transaction> pendingTransactions = new ConcurrentHashMap<>();
 
-    /**
-     * Method finds latest block in blockchain and if present set latest HOT_BLOCKS_SIZE in hashMap for cache
-     * */
+    @Getter
+    private final ConcurrentHashMap<String, Object> accountLocks = new ConcurrentHashMap<>();
+
     @PostConstruct
     private void init() {
         blockService.findLatest()
                 .ifPresentOrElse(
                         block -> {
                             setLatestBlock(block);
-                            loadHotBlocks();
                             log.info("Latest block loaded: height={}, hash={}",
                                     block.getHeight(), block.getCurrentHash());
                         },
@@ -76,40 +68,45 @@ public class BlockChainService {
                 );
     }
 
-    /**
-     * Method load latest HOT_BLOCKS_SIZE in hashMap
-     * */
-    private void loadHotBlocks() {
-        if (latestBlock == null) return;
-        int startHeight = Math.max(0, latestBlock.getHeight() - HOT_BLOCKS_SIZE + 1);
-        var latestBlocksMetadata = blockMetadataService.findBlockByHeightIn(startHeight, latestBlock.getHeight());
-        if (CollectionUtils.isEmpty(latestBlocksMetadata)) return;
-        var blocksKeys = latestBlocksMetadata.stream().map(BlockMetadata::getLeveldbKey).toList();
-        blockService.findAllByKeyIn(blocksKeys)
-                .forEach(block -> {
-                    hotBlocksCache.put(block.getCurrentHash(), block);
-                    heightToHashCache.put(block.getHeight(), block.getCurrentHash());
-                });
-    }
+    @RequireRole({AccountRole.ADMIN, AccountRole.VALIDATOR})
+    public void createAccount(CreateTransactionRequest createTransactionRequest) {
 
-    @Transactional
-    public Block createGenesisBlock(String validatorAddress) {
-        if (latestBlock != null) {
-            throw new IllegalStateException("Genesis block already exists");
+        var newUserPublicKeyBase64 = createTransactionRequest.getPayload();
+        var newUserAddress = cryptoService.generateAddress(newUserPublicKeyBase64);
+
+        Object lock = accountLocks.computeIfAbsent(newUserAddress, k -> new Object());
+
+        synchronized (lock) {
+            try {
+                boolean isSignatureValid = cryptoService.checkSignatureValid(
+                        createTransactionRequest.getPayload(),
+                        createTransactionRequest.getSignature(),
+                        createTransactionRequest.getCreatorPublicKey()
+                );
+
+                if (!isSignatureValid) {
+                    throw new SecurityException("Invalid signature for account creation");
+                }
+
+                if (accountRepository.findByAddress(newUserAddress).isPresent()) {
+                    throw new IllegalArgumentException(
+                            "Account with this public key already exists: " + newUserAddress);
+                }
+
+                boolean hasPendingCreation = getPendingTransactions().values().stream()
+                        .anyMatch(tx -> tx.getTransactionType() == TransactionType.CREATE_ACCOUNT);
+
+                if (hasPendingCreation) {
+                    throw new IllegalArgumentException(
+                            "Account creation already pending for address: " + newUserAddress);
+                }
+                var transaction = transactionService.createTransaction(createTransactionRequest);
+                getPendingTransactions().put(transaction.getId(), transaction);
+
+            } finally {
+                accountLocks.remove(newUserAddress, lock);
+            }
         }
-
-        Block genesis = new Block(0, "0");
-        genesis.setValidatorAddress(validatorAddress);
-        genesis.setMerkleRoot(cryptoService.calculateMerkleRoot(new ArrayList<>()));
-        genesis.setStatus(BlockStatus.FINALIZED);
-        genesis.setValidatorSignature("genesis");
-        genesis.setTimestamp(LocalDateTime.now());
-        genesis.setCurrentHash(genesis.calculateHash());
-
-        blockService.save(genesis);
-
-        log.info("Genesis block created");
-        return genesis;
     }
 
 }

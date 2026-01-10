@@ -26,14 +26,17 @@ public class Account implements Serializable{
 
     private boolean isActive;
 
+    private String createdByAddress;
+
     private LocalDateTime createdAt;
 
-    public Account(String address, String publicKey) {
+    public Account(String address, String publicKey, String createdByAddress) {
         this.address = address;
         this.publicKey = publicKey;
         this.accountRoles = new ArrayList<>();
         this.accountRoles.add(AccountRole.USER);
         this.isActive = true;
+        this.createdByAddress = createdByAddress;
         this.createdAt = LocalDateTime.now();
     }
 
