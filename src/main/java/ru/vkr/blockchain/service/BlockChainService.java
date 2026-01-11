@@ -20,6 +20,7 @@ import ru.vkr.blockchain.service.domain.BlockService;
 import ru.vkr.blockchain.service.domain.TransactionService;
 import ru.vkr.blockchain.service.entity.BlockMetadataService;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,7 +38,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class BlockChainService {
 
     private final BlockService blockService;
-    private final BlockMetadataService blockMetadataService;
     private final CryptoService cryptoService;
     private final AccountRepository accountRepository;
     private final TransactionService transactionService;
@@ -50,7 +50,8 @@ public class BlockChainService {
     private final int HOT_BLOCKS_SIZE = 100; // todo вынести в переменные окружения
 
     @Getter
-    private final ConcurrentHashMap<String, Transaction> pendingTransactions = new ConcurrentHashMap<>();
+    private final Map<String, Transaction> pendingTransactions =
+            Collections.synchronizedMap(new LinkedHashMap<>());
 
     @Getter
     private final ConcurrentHashMap<String, Object> accountLocks = new ConcurrentHashMap<>();
@@ -105,7 +106,7 @@ public class BlockChainService {
 
             } finally {
                 accountLocks.remove(newUserAddress, lock);
-            }
+            } // todo создавать auditLog
         }
     }
 
