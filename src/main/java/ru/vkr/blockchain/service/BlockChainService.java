@@ -193,6 +193,16 @@ public class BlockChainService {
         }
     }
 
+    @RequireRole({AccountRole.USER, AccountRole.VALIDATOR, AccountRole.ADMIN})
+    public void storeData(CreateTransactionRequest request) {
+        if (!cryptoService.checkSignatureValid(request.getPayload(), request.getSignature(), request.getCreatorPublicKey())) {
+            throw new SecurityException("Invalid signature for transaction");
+        }
+
+        Transaction transaction = transactionService.createTransaction(request);
+        getPendingTransactions().put(transaction.getId(), transaction);
+    }
+
     private <T> T parsePayload(String payloadJson, Class<T> clazz) {
         try {
             return objectMapper.readValue(payloadJson, clazz);
