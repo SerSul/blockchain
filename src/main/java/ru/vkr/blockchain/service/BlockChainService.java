@@ -1,24 +1,26 @@
 package ru.vkr.blockchain.service;
 
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.util.CollectionUtils;
 import ru.vkr.blockchain.annotations.RequireRole;
 import ru.vkr.blockchain.api.CreateTransactionRequest;
-import ru.vkr.blockchain.domain.entity.BlockMetadata;
+import ru.vkr.blockchain.domain.model.Account;
 import ru.vkr.blockchain.domain.model.Block;
 import ru.vkr.blockchain.domain.model.Transaction;
 import ru.vkr.blockchain.domain.model.enums.AccountRole;
 import ru.vkr.blockchain.domain.model.enums.TransactionType;
+import ru.vkr.blockchain.dto.DeactivateAccountPayload;
+import ru.vkr.blockchain.dto.UpdateAccountRolesPayload;
+import ru.vkr.blockchain.exception.user.UserNotFoundException;
 import ru.vkr.blockchain.repository.AccountRepository;
 import ru.vkr.blockchain.service.domain.BlockService;
 import ru.vkr.blockchain.service.domain.TransactionService;
-import ru.vkr.blockchain.service.entity.BlockMetadataService;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -41,6 +43,7 @@ public class BlockChainService {
     private final CryptoService cryptoService;
     private final AccountRepository accountRepository;
     private final TransactionService transactionService;
+    private final ObjectMapper objectMapper;
 
     @Getter
     @Setter
@@ -95,7 +98,8 @@ public class BlockChainService {
                 }
 
                 boolean hasPendingCreation = getPendingTransactions().values().stream()
-                        .anyMatch(tx -> tx.getTransactionType() == TransactionType.CREATE_ACCOUNT);
+                        .anyMatch(tx -> tx.getTransactionType() == TransactionType.CREATE_ACCOUNT
+                                && cryptoService.generateAddress(tx.getPayload()).equals(newUserAddress));
 
                 if (hasPendingCreation) {
                     throw new IllegalArgumentException(
@@ -108,6 +112,98 @@ public class BlockChainService {
                 accountLocks.remove(newUserAddress, lock);
             } // todo создавать auditLog
         }
+    }
+
+    @RequireRole(AccountRole.ADMIN)
+    public void updateAccountRoles(CreateTransactionRequest request) {
+        UpdateAccountRolesPayload payload = parsePayload(request.getPayload(), UpdateAccountRolesPayload.class);
+        String targetAddress = payload.getTargetAddress();
+
+        Object lock = accountLocks.computeIfAbsent(targetAddress, k -> new Object());
+        synchronized (lock) {
+            try {
+                if (!cryptoService.checkSignatureValid(request.getPayload(), request.getSignature(), request.getCreatorPublicKey())) {
+                    throw new SecurityException("Invalid signature for transaction");
+                }
+
+                Account target = accountRepository.findByAddress(targetAddress)
+                        .orElseThrow(() -> new UserNotFoundException(targetAddress));
+
+                if (!target.isActive()) {
+                    throw new IllegalArgumentException("Cannot update roles for inactive account: " + targetAddress);
+                }
+
+                if (target.getAccountRoles().contains(AccountRole.ADMIN)) {
+                    throw new IllegalArgumentException("Admin cannot modify another admin");
+                }
+
+                if (payload.getRoles().isEmpty()) {
+                    throw new IllegalArgumentException("Roles list cannot be empty");
+                }
+
+                if (hasPendingTransactionForTarget(targetAddress, TransactionType.UPDATE_ACCOUNT_ROLES)) {
+                    throw new IllegalArgumentException("Update roles already pending for address: " + targetAddress);
+                }
+
+                Transaction transaction = transactionService.createTransaction(request);
+                getPendingTransactions().put(transaction.getId(), transaction);
+            } finally {
+                accountLocks.remove(targetAddress, lock);
+            }
+        }
+    }
+
+    @RequireRole(AccountRole.ADMIN)
+    public void deactivateAccount(CreateTransactionRequest request) {
+        DeactivateAccountPayload payload = parsePayload(request.getPayload(), DeactivateAccountPayload.class);
+        String targetAddress = payload.getTargetAddress();
+        String creatorAddress = cryptoService.generateAddress(request.getCreatorPublicKey());
+
+        if (targetAddress.equals(creatorAddress)) {
+            throw new IllegalArgumentException("Cannot deactivate your own account");
+        }
+
+        Object lock = accountLocks.computeIfAbsent(targetAddress, k -> new Object());
+        synchronized (lock) {
+            try {
+                if (!cryptoService.checkSignatureValid(request.getPayload(), request.getSignature(), request.getCreatorPublicKey())) {
+                    throw new SecurityException("Invalid signature for transaction");
+                }
+
+                Account target = accountRepository.findByAddress(targetAddress)
+                        .orElseThrow(() -> new UserNotFoundException(targetAddress));
+
+                if (!target.isActive()) {
+                    throw new IllegalArgumentException("Account is already inactive: " + targetAddress);
+                }
+
+                if (target.getAccountRoles().contains(AccountRole.ADMIN)) {
+                    throw new IllegalArgumentException("Admin cannot modify another admin");
+                }
+
+                if (hasPendingTransactionForTarget(targetAddress, TransactionType.DEACTIVATE_ACCOUNT)) {
+                    throw new IllegalArgumentException("Deactivation already pending for address: " + targetAddress);
+                }
+
+                Transaction transaction = transactionService.createTransaction(request);
+                getPendingTransactions().put(transaction.getId(), transaction);
+            } finally {
+                accountLocks.remove(targetAddress, lock);
+            }
+        }
+    }
+
+    private <T> T parsePayload(String payloadJson, Class<T> clazz) {
+        try {
+            return objectMapper.readValue(payloadJson, clazz);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid payload format: " + e.getMessage());
+        }
+    }
+
+    private boolean hasPendingTransactionForTarget(String targetAddress, TransactionType type) {
+        return getPendingTransactions().values().stream()
+                .anyMatch(tx -> tx.getTransactionType() == type && tx.getPayload().contains(targetAddress));
     }
 
 }
