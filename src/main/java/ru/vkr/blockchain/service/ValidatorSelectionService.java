@@ -20,9 +20,8 @@ import java.util.Optional;
 @Slf4j
 public class ValidatorSelectionService {
 
-    private final BlockChainService blockChainService;
     private final AccountRepository accountRepository;
-    private final BlockRepository blockRepository;
+    private final BlockService blockService;
 
     /**
      * Возвращает адрес валидатора для следующего блока (round-robin).
@@ -60,6 +59,6 @@ public class ValidatorSelectionService {
     }
 
     private int getNextHeight() {
-        return blockRepository.findLatest().map(block -> block.getHeight() + 1).orElse(0);
+        return blockService.findLatest().map(block -> block.getHeight() + 1).orElse(0);
     }
 }

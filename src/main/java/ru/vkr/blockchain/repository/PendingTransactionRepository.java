@@ -9,8 +9,8 @@ import ru.vkr.blockchain.service.LevelDBService;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
@@ -42,7 +42,7 @@ public class PendingTransactionRepository {
 
     public void deleteAll(Collection<String> transactionIds) {
         Map<String, byte[]> ops = transactionIds.stream()
-                .collect(Collectors.toMap(PendingTransactionRepository::key, k -> null));
+                .collect(java.util.stream.Collectors.toMap(PendingTransactionRepository::key, k -> (byte[]) null));
         levelDBService.batchWrite(ops);
         log.debug("Deleted {} pending transactions", transactionIds.size());
     }
@@ -64,5 +64,14 @@ public class PendingTransactionRepository {
     public boolean hasPendingForTarget(String targetAddress, TransactionType type) {
         return findAll().stream()
                 .anyMatch(tx -> tx.getTransactionType() == type && tx.getPayload().contains(targetAddress));
+    }
+
+    public Collection<Transaction> findByIds(Collection<String> transactionIds) {
+        if (transactionIds == null || transactionIds.isEmpty()) {
+            return List.of();
+        }
+        return findAll().stream()
+                .filter(tx -> transactionIds.contains(tx.getId()))
+                .toList();
     }
 }

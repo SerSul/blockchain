@@ -10,10 +10,10 @@ import ru.vkr.blockchain.annotations.RequireRole;
 import ru.vkr.blockchain.api.CreateTransactionRequest;
 import ru.vkr.blockchain.domain.model.Transaction;
 import ru.vkr.blockchain.domain.model.enums.AccountRole;
-import ru.vkr.blockchain.repository.AccountRepository;
 import ru.vkr.blockchain.repository.PendingTransactionRepository;
-import ru.vkr.blockchain.service.domain.BlockService;
 import ru.vkr.blockchain.service.domain.TransactionService;
+
+import java.util.Collection;
 
 /**
  * <br>
@@ -40,6 +40,10 @@ public class BlockChainService {
 
         Transaction transaction = transactionService.createTransaction(request);
         pendingTransactionRepository.save(transaction);
+    }
+
+    public Collection<Transaction> getPendingTransactions() {
+        return pendingTransactionRepository.findAll();
     }
 
 }
