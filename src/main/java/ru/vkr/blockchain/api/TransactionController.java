@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import ru.vkr.blockchain.domain.model.enums.TransactionType;
 import ru.vkr.blockchain.dto.ApiResponse;
+import ru.vkr.blockchain.dto.CreateTransactionRequest;
 import ru.vkr.blockchain.service.BlockChainService;
 
 @RestController

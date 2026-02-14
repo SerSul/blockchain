@@ -1,4 +1,4 @@
-package ru.vkr.blockchain.api;
+package ru.vkr.blockchain.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.EnumType;

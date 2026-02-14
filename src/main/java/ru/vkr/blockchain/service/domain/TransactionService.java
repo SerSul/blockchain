@@ -3,7 +3,7 @@ package ru.vkr.blockchain.service.domain;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import ru.vkr.blockchain.api.CreateTransactionRequest;
+import ru.vkr.blockchain.dto.CreateTransactionRequest;
 import ru.vkr.blockchain.domain.model.Transaction;
 import ru.vkr.blockchain.service.CryptoService;
 

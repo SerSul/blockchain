@@ -24,7 +24,6 @@ public class Block implements Serializable {
     private String previousHash;
     private String currentHash;
     private String merkleRoot; // Хеш суммы хешей всех транзакций
-    private String stateRoot; // Глобальное состояние
     private LocalDateTime timestamp;
     private String validatorAddress;
     private String validatorSignature;

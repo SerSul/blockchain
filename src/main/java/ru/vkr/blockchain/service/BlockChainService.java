@@ -1,13 +1,11 @@
 package ru.vkr.blockchain.service;
 
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.vkr.blockchain.annotations.RequireRole;
-import ru.vkr.blockchain.api.CreateTransactionRequest;
+import ru.vkr.blockchain.dto.CreateTransactionRequest;
 import ru.vkr.blockchain.domain.model.Transaction;
 import ru.vkr.blockchain.domain.model.enums.AccountRole;
 import ru.vkr.blockchain.repository.PendingTransactionRepository;
