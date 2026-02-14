@@ -12,18 +12,18 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import ru.vkr.blockchain.domain.model.enums.TransactionType;
 import ru.vkr.blockchain.dto.ApiResponse;
-import ru.vkr.blockchain.service.BlockChainService;
+import ru.vkr.blockchain.service.AccountService;
 
 @RestController
 @RequestMapping("/api/accounts")
 @RequiredArgsConstructor
 @Slf4j
 public class AccountController {
-    private final BlockChainService blockChainService;
+    private final AccountService accountService;
 
     @PostMapping
     public ResponseEntity<?> createAccount(@RequestBody @Valid CreateTransactionRequest request) {
-        blockChainService.createAccount(request);
+        accountService.createAccount(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success());
     }
@@ -34,7 +34,7 @@ public class AccountController {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("transaction_type must be UPDATE_ACCOUNT_ROLES"));
         }
-        blockChainService.updateAccountRoles(request);
+        accountService.updateAccountRoles(request);
         return ResponseEntity.ok(ApiResponse.success());
     }
 
@@ -44,7 +44,7 @@ public class AccountController {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("transaction_type must be DEACTIVATE_ACCOUNT"));
         }
-        blockChainService.deactivateAccount(request);
+        accountService.deactivateAccount(request);
         return ResponseEntity.ok(ApiResponse.success());
     }
 }

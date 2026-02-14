@@ -4,7 +4,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.vkr.blockchain.domain.model.Account;
+import ru.vkr.blockchain.domain.model.Block;
 import ru.vkr.blockchain.repository.AccountRepository;
+import ru.vkr.blockchain.repository.BlockRepository;
 import ru.vkr.blockchain.service.domain.BlockService;
 
 import java.util.List;
@@ -20,6 +22,7 @@ public class ValidatorSelectionService {
 
     private final BlockChainService blockChainService;
     private final AccountRepository accountRepository;
+    private final BlockRepository blockRepository;
 
     /**
      * Возвращает адрес валидатора для следующего блока (round-robin).
@@ -57,8 +60,6 @@ public class ValidatorSelectionService {
     }
 
     private int getNextHeight() {
-        return blockChainService.getLatestBlock() != null
-                ? blockChainService.getLatestBlock().getHeight() + 1
-                : 0;
+        return blockRepository.findLatest().map(block -> block.getHeight() + 1).orElse(0);
     }
 }
