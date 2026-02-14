@@ -23,14 +23,35 @@ public class AccountRepository {
      * Сохраняет аккаунт в LevelDB
      */
     public void save(Account account) throws IOException {
+        Optional<Account> existing = findByAddress(account.getAddress());
+        boolean hadValidator = existing.map(a -> a.getAccountRoles().contains(AccountRole.VALIDATOR)).orElse(false);
+        boolean hasValidator = account.getAccountRoles().contains(AccountRole.VALIDATOR);
+
         String key = ACCOUNT_PREFIX + account.getAddress();
         levelDBService.put(key, account.toBytes());
 
-        if (account.getAccountRoles().contains(AccountRole.VALIDATOR)) {
+        if (hasValidator) {
             addToValidatorIndex(account.getAddress());
+        } else if (hadValidator) {
+            removeFromValidatorIndex(account.getAddress());
         }
 
         log.debug("Account saved: {}", account.getAddress());
+    }
+
+    /**
+     * Возвращает список адресов валидаторов (отсортирован для детерминированного round-robin)
+     */
+    public List<String> getValidators() {
+        byte[] validatorListBytes = levelDBService.get(VALIDATORS_LIST_KEY);
+        if (validatorListBytes == null) return List.of();
+
+        String validatorList = new String(validatorListBytes);
+        return Arrays.stream(validatorList.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .sorted()
+                .toList();
     }
 
     /**

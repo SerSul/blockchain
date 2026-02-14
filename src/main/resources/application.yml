@@ -30,3 +30,7 @@ leveldb:
   path: ./data/leveldb
   create-if-missing: true
   cache-size: 104857600
+
+blockchain:
+  genesis:
+    admin-public-key: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6Zips/rr6D/KCuXUOjxXf/ZE8TjXR10vN7rMljQGKiQ4wd/L6iOh29PdwMRt0bo6yzIoW5ifKT1WXGxsfiSQCQ=="

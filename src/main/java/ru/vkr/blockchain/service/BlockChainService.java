@@ -68,7 +68,7 @@ public class BlockChainService {
                             log.info("Latest block loaded: height={}, hash={}",
                                     block.getHeight(), block.getCurrentHash());
                         },
-                        () -> log.warn("No blocks found. Genesis block required!")
+                        () -> log.warn("No blocks found. Genesis block required!") // todo change to Error
                 );
     }
 
