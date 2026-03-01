@@ -13,9 +13,11 @@ import ru.vkr.blockchain.domain.model.enums.AccountRole;
 import ru.vkr.blockchain.domain.model.enums.TransactionType;
 import ru.vkr.blockchain.dto.DeactivateAccountPayload;
 import ru.vkr.blockchain.dto.UpdateAccountRolesPayload;
+import ru.vkr.blockchain.domain.entity.AuditLog;
 import ru.vkr.blockchain.exception.user.UserNotFoundException;
 import ru.vkr.blockchain.repository.AccountRepository;
 import ru.vkr.blockchain.repository.PendingTransactionRepository;
+import ru.vkr.blockchain.repository.entity.AuditLogRepository;
 import ru.vkr.blockchain.service.domain.BlockService;
 import ru.vkr.blockchain.service.domain.TransactionService;
 
@@ -34,6 +36,7 @@ public class AccountService {
     private final TransactionService transactionService;
     private final BlockService blockService;
     private final BlockCreationService blockCreationService;
+    private final AuditLogRepository auditLogRepository;
     private final ObjectMapper objectMapper;
 
     @Getter
@@ -82,7 +85,7 @@ public class AccountService {
 
             } finally {
                 accountLocks.remove(newUserAddress, lock);
-            } // todo создавать auditLog
+            }
         }
     }
 
@@ -111,6 +114,8 @@ public class AccountService {
             throw new RuntimeException("Failed to save bootstrap admin", e);
         }
         blockCreationService.createGenesisBlock(address);
+        auditLogRepository.save(new AuditLog("ACCOUNT", address, "BOOTSTRAP_CREATE", address,
+                "First admin created, genesis block created"));
     }
 
     @RequireRole(AccountRole.ADMIN)

@@ -13,6 +13,8 @@ import ru.vkr.blockchain.dto.DeactivateAccountPayload;
 import ru.vkr.blockchain.dto.UpdateAccountRolesPayload;
 import ru.vkr.blockchain.exception.user.UserNotFoundException;
 import ru.vkr.blockchain.repository.AccountRepository;
+import ru.vkr.blockchain.repository.entity.AuditLogRepository;
+import ru.vkr.blockchain.domain.entity.AuditLog;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -25,8 +27,12 @@ import java.util.ArrayList;
 @Slf4j
 public class TransactionApplierService {
 
+    private static final String ENTITY_ACCOUNT = "ACCOUNT";
+    private static final String ENTITY_TRANSACTION = "TRANSACTION";
+
     private final CryptoService cryptoService;
     private final AccountRepository accountRepository;
+    private final AuditLogRepository auditLogRepository;
     private final ObjectMapper objectMapper;
 
     /**
@@ -62,6 +68,8 @@ public class TransactionApplierService {
         } catch (IOException e) {
             throw new RuntimeException("Failed to save account", e);
         }
+        auditLogRepository.save(new AuditLog(ENTITY_ACCOUNT, address, "CREATE_ACCOUNT", tx.getSenderId(),
+                "Transaction " + tx.getId()));
     }
 
     private void applyUpdateAccountRoles(Transaction tx) {
@@ -82,6 +90,8 @@ public class TransactionApplierService {
         } catch (IOException e) {
             throw new RuntimeException("Failed to update account", e);
         }
+        auditLogRepository.save(new AuditLog(ENTITY_ACCOUNT, payload.getTargetAddress(), "UPDATE_ROLES", tx.getSenderId(),
+                "Transaction " + tx.getId() + ", roles: " + payload.getRoles()));
     }
 
     private void applyDeactivateAccount(Transaction tx) {
@@ -102,11 +112,14 @@ public class TransactionApplierService {
         } catch (IOException e) {
             throw new RuntimeException("Failed to deactivate account", e);
         }
+        auditLogRepository.save(new AuditLog(ENTITY_ACCOUNT, payload.getTargetAddress(), "DEACTIVATE_ACCOUNT", tx.getSenderId(),
+                "Transaction " + tx.getId()));
     }
 
     private void applyStoreData(Transaction tx) {
         // STORE_DATA — данные уже в payload транзакции, блок сохраняет их.
-        // Дополнительное состояние не меняется.
+        auditLogRepository.save(new AuditLog(ENTITY_TRANSACTION, tx.getId(), "STORE_DATA", tx.getSenderId(),
+                "Transaction " + tx.getId()));
     }
 
     private <T> T parsePayload(String payloadJson, Class<T> clazz) {

@@ -7,8 +7,10 @@ import ru.vkr.blockchain.dto.CreateBlockRequest;
 import ru.vkr.blockchain.domain.model.Block;
 import ru.vkr.blockchain.domain.model.Transaction;
 import ru.vkr.blockchain.domain.model.enums.BlockStatus;
+import ru.vkr.blockchain.domain.entity.AuditLog;
 import ru.vkr.blockchain.repository.AccountRepository;
 import ru.vkr.blockchain.repository.PendingTransactionRepository;
+import ru.vkr.blockchain.repository.entity.AuditLogRepository;
 import ru.vkr.blockchain.service.domain.BlockService;
 
 import java.time.LocalDateTime;
@@ -25,12 +27,14 @@ import java.util.Optional;
 public class BlockCreationService {
 
     private static final String GENESIS_PREVIOUS_HASH = "0000000000000000000000000000000000000000000000000000000000000000";
+    private static final String ENTITY_BLOCK = "BLOCK";
 
     private final BlockService blockService;
     private final CryptoService cryptoService;
     private final AccountRepository accountRepository;
     private final PendingTransactionRepository pendingTransactionRepository;
     private final TransactionApplierService transactionApplierService;
+    private final AuditLogRepository auditLogRepository;
 
     /**
      * Создаёт блок после проверки подписи валидатора.
@@ -58,6 +62,8 @@ public class BlockCreationService {
         applyTransactions(transactions);
         pendingTransactionRepository.deleteAll(transactions.stream().map(Transaction::getId).toList());
 
+        auditLogRepository.save(new AuditLog(ENTITY_BLOCK, block.getCurrentHash(), "CREATE_BLOCK", validatorAddress,
+                "height=" + block.getHeight() + ", txCount=" + transactions.size()));
         log.info("Block created: height={}, hash={}, txCount={}", block.getHeight(), block.getCurrentHash(), transactions.size());
     }
 
@@ -122,6 +128,8 @@ public class BlockCreationService {
         block.setStatus(BlockStatus.CONFIRMED);
         block.setTimestamp(block.getTimestamp() != null ? block.getTimestamp() : java.time.LocalDateTime.now());
         blockService.save(block);
+        auditLogRepository.save(new AuditLog(ENTITY_BLOCK, block.getCurrentHash(), "CREATE_GENESIS", validatorAddress,
+                "height=0"));
         log.info("Genesis block created: hash={}", block.getCurrentHash());
     }
 
