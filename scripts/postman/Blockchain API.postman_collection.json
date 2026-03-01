@@ -1,0 +1,147 @@
+{
+  "info": {
+    "name": "Blockchain API",
+    "description": "Полное API блокчейна: аккаунты, блоки, транзакции, пиры.\n\nПодписи: используйте скрипты в папке scripts/\n- CREATE_ACCOUNT: build_create_account_request.py\n- ADD_PEER / REMOVE_PEER: build_peer_request.py\n- Остальные: sign_payload.py (подписать payload строку)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "creator_public_key", "value": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEQVNEX6B8O7klyIptmsKafVCsTMZLcGRkzOIfGfQbnq1XerWqTA3MzPFNhk5ULbXYn3Xl3hi7kQvzCRMRLHmN7w==" },
+    { "key": "validator_public_key", "value": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEQVNEX6B8O7klyIptmsKafVCsTMZLcGRkzOIfGfQbnq1XerWqTA3MzPFNhk5ULbXYn3Xl3hi7kQvzCRMRLHmN7w==" }
+  ],
+  "item": [
+    {
+      "name": "Accounts",
+      "description": "Создание аккаунтов, смена ролей, деактивация. CREATE_ACCOUNT — без роли (первый по API становится админом). Остальное — только ADMIN.",
+      "item": [
+        {
+          "name": "Create account (CREATE_ACCOUNT)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payload\": \"{\\\"public_key\\\":\\\"<публичный ключ нового пользователя Base64>\\\"}\",\n  \"creator_public_key\": \"<публичный ключ создателя (для bootstrap = тот же ключ)>\",\n  \"signature\": \"<подпись строки payload от creator>\",\n  \"transaction_type\": \"CREATE_ACCOUNT\"\n}"
+            },
+            "url": "{{baseUrl}}/api/accounts",
+            "description": "Создаёт заявку на аккаунт. Payload — JSON-строка {\"public_key\":\"Base64\"}. Подпись ставится от этой строки. Первый вызов (bootstrap) — создаёт админа и genesis. Скрипт: build_create_account_request.py"
+          }
+        },
+        {
+          "name": "Update account roles (UPDATE_ACCOUNT_ROLES)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payload\": \"{\\\"target_address\\\":\\\"0x...\\\",\\\"roles\\\":[\\\"USER\\\",\\\"VALIDATOR\\\"]}\",\n  \"creator_public_key\": \"{{creator_public_key}}\",\n  \"signature\": \"<подпись payload>\",\n  \"transaction_type\": \"UPDATE_ACCOUNT_ROLES\"\n}"
+            },
+            "url": "{{baseUrl}}/api/accounts/roles",
+            "description": "Только ADMIN. payload = JSON: target_address, roles (USER, VALIDATOR, AUDITOR). Подписать строку payload."
+          }
+        },
+        {
+          "name": "Deactivate account (DEACTIVATE_ACCOUNT)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payload\": \"{\\\"target_address\\\":\\\"0x...\\\"}\",\n  \"creator_public_key\": \"{{creator_public_key}}\",\n  \"signature\": \"<подпись payload>\",\n  \"transaction_type\": \"DEACTIVATE_ACCOUNT\"\n}"
+            },
+            "url": "{{baseUrl}}/api/accounts/deactivate",
+            "description": "Только ADMIN. payload = JSON: {\"target_address\": \"0x...\"}. Нельзя деактивировать себя и другого админа."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Blocks",
+      "description": "Следующий валидатор и создание блока. Создавать блок может только текущий валидатор.",
+      "item": [
+        {
+          "name": "Get next validator",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/blocks/next-validator",
+            "description": "Возвращает аккаунт следующего валидатора (round-robin по высоте блока)."
+          }
+        },
+        {
+          "name": "Create block",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"validator_public_key\": \"{{validator_public_key}}\",\n  \"validator_signature\": \"<подпись хеша блока от валидатора>\",\n  \"timestamp\": \"2025-03-02T12:00:00\",\n  \"transaction_ids\": []\n}"
+            },
+            "url": "{{baseUrl}}/api/blocks",
+            "description": "Создаёт блок. Только текущий валидатор. transaction_ids — опционально, пустой список = все pending. Подпись ставится на хеш блока (вычисляется на бэкенде при сборке блока)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Transactions",
+      "description": "Сохранение данных в блокчейн (STORE_DATA). Требуется роль USER, VALIDATOR или ADMIN.",
+      "item": [
+        {
+          "name": "Store data (STORE_DATA)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payload\": \"<любые данные в строке, например JSON или текст>\",\n  \"creator_public_key\": \"{{creator_public_key}}\",\n  \"signature\": \"<подпись payload>\",\n  \"transaction_type\": \"STORE_DATA\",\n  \"content_type\": \"application/json\"\n}"
+            },
+            "url": "{{baseUrl}}/api/transactions/store",
+            "description": "Добавляет транзакцию в pending. Подпись — от строки payload. content_type опционален."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Peers",
+      "description": "Список пиров, добавление и удаление (ADD_PEER, REMOVE_PEER). Только ADMIN.",
+      "item": [
+        {
+          "name": "List peers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/peers",
+            "description": "Список известных пиров (URL нод)."
+          }
+        },
+        {
+          "name": "Add peer (ADD_PEER)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payload\": \"{\\\"peer_url\\\":\\\"http://localhost:8081\\\"}\",\n  \"creator_public_key\": \"{{creator_public_key}}\",\n  \"signature\": \"<подпись payload — build_peer_request.py --action add>\",\n  \"transaction_type\": \"ADD_PEER\"\n}"
+            },
+            "url": "{{baseUrl}}/api/peers",
+            "description": "Транзакция ADD_PEER. Скрипт: build_peer_request.py -k admin.pem --creator-public-key \"...\" --peer-url \"http://...\" --action add"
+          }
+        },
+        {
+          "name": "Remove peer (REMOVE_PEER)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payload\": \"{\\\"peer_url\\\":\\\"http://localhost:8081\\\"}\",\n  \"creator_public_key\": \"{{creator_public_key}}\",\n  \"signature\": \"<подпись payload — build_peer_request.py --action remove>\",\n  \"transaction_type\": \"REMOVE_PEER\"\n}"
+            },
+            "url": "{{baseUrl}}/api/peers/remove",
+            "description": "Транзакция REMOVE_PEER. Скрипт: build_peer_request.py --action remove"
+          }
+        }
+      ]
+    }
+  ]
+}
