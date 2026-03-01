@@ -34,3 +34,7 @@ leveldb:
 blockchain:
   genesis:
     admin-public-key: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6Zips/rr6D/KCuXUOjxXf/ZE8TjXR10vN7rMljQGKiQ4wd/L6iOh29PdwMRt0bo6yzIoW5ifKT1WXGxsfiSQCQ=="
+  bootstrap:
+    # Начальный список пиров (адреса нод для P2P). Добавляются при первом запуске, если список пиров пуст.
+    peers: []
+    # Пример: peers: ["http://localhost:8081", "http://192.168.1.10:8080"]
