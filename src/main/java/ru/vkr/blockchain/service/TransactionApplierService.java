@@ -10,6 +10,7 @@ import ru.vkr.blockchain.domain.model.enums.AccountRole;
 import ru.vkr.blockchain.domain.model.enums.TransactionStatus;
 import ru.vkr.blockchain.domain.model.enums.TransactionType;
 import ru.vkr.blockchain.dto.AddPeerPayload;
+import ru.vkr.blockchain.dto.CreateAccountPayload;
 import ru.vkr.blockchain.dto.DeactivateAccountPayload;
 import ru.vkr.blockchain.dto.RemovePeerPayload;
 import ru.vkr.blockchain.dto.UpdateAccountRolesPayload;
@@ -63,7 +64,8 @@ public class TransactionApplierService {
     }
 
     private void applyCreateAccount(Transaction tx) {
-        String publicKeyBase64 = tx.getPayload();
+        CreateAccountPayload payload = parsePayload(tx.getPayload(), CreateAccountPayload.class);
+        String publicKeyBase64 = payload.getPublicKey();
         String address = cryptoService.generateAddress(publicKeyBase64);
 
         if (accountRepository.findByAddress(address).isPresent()) {

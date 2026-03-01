@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.vkr.blockchain.annotations.RequireRole;
+import ru.vkr.blockchain.dto.CreateAccountPayload;
 import ru.vkr.blockchain.dto.CreateTransactionRequest;
 import ru.vkr.blockchain.domain.model.Account;
 import ru.vkr.blockchain.domain.model.Transaction;
@@ -43,7 +44,8 @@ public class AccountService {
 
     @RequireRole({AccountRole.ADMIN, AccountRole.VALIDATOR})
     public void createAccount(CreateTransactionRequest createTransactionRequest) {
-        var newUserPublicKeyBase64 = createTransactionRequest.getPayload();
+        CreateAccountPayload payload = parsePayload(createTransactionRequest.getPayload(), CreateAccountPayload.class);
+        var newUserPublicKeyBase64 = payload.getPublicKey();
         var newUserAddress = cryptoService.generateAddress(newUserPublicKeyBase64);
 
         if (isBootstrapMode()) {
@@ -72,7 +74,7 @@ public class AccountService {
 
                 boolean hasPendingCreation = pendingTransactionRepository.findAll().stream()
                         .anyMatch(tx -> tx.getTransactionType() == TransactionType.CREATE_ACCOUNT
-                                && cryptoService.generateAddress(tx.getPayload()).equals(newUserAddress));
+                                && addressFromCreateAccountPayload(tx.getPayload()).equals(newUserAddress));
 
                 if (hasPendingCreation) {
                     throw new IllegalArgumentException(
@@ -99,14 +101,15 @@ public class AccountService {
      * Транзакция применяется при создании блока; первый аккаунт получает роли админа в TransactionApplierService.
      */
     private void createFirstAdminAndGenesis(CreateTransactionRequest request, String publicKeyBase64, String address) {
-        if (!cryptoService.checkSignatureValid(
-                request.getPayload(),
-                request.getSignature(),
-                request.getCreatorPublicKey())) {
+        if (!cryptoService.checkSignatureValid(request.getPayload(), request.getSignature(), request.getCreatorPublicKey())) {
             throw new SecurityException("Invalid signature for account creation");
         }
         Transaction transaction = transactionService.createTransaction(request);
         blockCreationService.createGenesisBlock(address, List.of(transaction));
+    }
+
+    private String addressFromCreateAccountPayload(String payloadJson) {
+        return cryptoService.generateAddress(parsePayload(payloadJson, CreateAccountPayload.class).getPublicKey());
     }
 
     @RequireRole(AccountRole.ADMIN)
