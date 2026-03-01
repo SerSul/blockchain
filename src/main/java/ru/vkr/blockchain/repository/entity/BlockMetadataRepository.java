@@ -14,7 +14,7 @@ import java.util.List;
  * Creation date: 09.01.2026 23:35
  * </strong>
  */
-public interface BlockMetadataRepository extends JpaRepository<BlockMetadata, Long> {
+public interface BlockMetadataRepository extends JpaRepository<BlockMetadata, String> {
 
     @Query("SELECT b FROM BlockMetadata b WHERE b.height BETWEEN :startHeight AND :endHeight ORDER BY b.height ASC")
     List<BlockMetadata> findAllByHeightBetween(Integer startHeight, Integer endHeight);

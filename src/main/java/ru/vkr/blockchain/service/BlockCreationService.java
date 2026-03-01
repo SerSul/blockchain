@@ -8,9 +8,13 @@ import ru.vkr.blockchain.domain.model.Block;
 import ru.vkr.blockchain.domain.model.Transaction;
 import ru.vkr.blockchain.domain.model.enums.BlockStatus;
 import ru.vkr.blockchain.domain.entity.AuditLog;
+import ru.vkr.blockchain.domain.entity.BlockMetadata;
+import ru.vkr.blockchain.domain.entity.TransactionMetadata;
 import ru.vkr.blockchain.repository.AccountRepository;
 import ru.vkr.blockchain.repository.PendingTransactionRepository;
 import ru.vkr.blockchain.repository.entity.AuditLogRepository;
+import ru.vkr.blockchain.repository.entity.BlockMetadataRepository;
+import ru.vkr.blockchain.repository.entity.TransactionMetadataRepository;
 import ru.vkr.blockchain.service.domain.BlockService;
 
 import java.time.LocalDateTime;
@@ -35,6 +39,8 @@ public class BlockCreationService {
     private final PendingTransactionRepository pendingTransactionRepository;
     private final TransactionApplierService transactionApplierService;
     private final AuditLogRepository auditLogRepository;
+    private final BlockMetadataRepository blockMetadataRepository;
+    private final TransactionMetadataRepository transactionMetadataRepository;
 
     /**
      * Создаёт блок после проверки подписи валидатора.
@@ -59,7 +65,11 @@ public class BlockCreationService {
         block.setStatus(BlockStatus.CONFIRMED);
 
         blockService.save(block);
+        blockMetadataRepository.save(toBlockMetadata(block));
         applyTransactions(transactions);
+        for (Transaction tx : transactions) {
+            transactionMetadataRepository.save(toTransactionMetadata(tx, block.getCurrentHash()));
+        }
         pendingTransactionRepository.deleteAll(transactions.stream().map(Transaction::getId).toList());
 
         auditLogRepository.save(new AuditLog(ENTITY_BLOCK, block.getCurrentHash(), "CREATE_BLOCK", validatorAddress,
@@ -128,9 +138,40 @@ public class BlockCreationService {
         block.setStatus(BlockStatus.CONFIRMED);
         block.setTimestamp(block.getTimestamp() != null ? block.getTimestamp() : java.time.LocalDateTime.now());
         blockService.save(block);
+        blockMetadataRepository.save(toBlockMetadata(block));
         auditLogRepository.save(new AuditLog(ENTITY_BLOCK, block.getCurrentHash(), "CREATE_GENESIS", validatorAddress,
                 "height=0"));
         log.info("Genesis block created: hash={}", block.getCurrentHash());
+    }
+
+    private BlockMetadata toBlockMetadata(Block block) {
+        BlockMetadata m = new BlockMetadata();
+        m.setHash(block.getCurrentHash());
+        m.setPreviousHash(block.getPreviousHash());
+        m.setHeight(block.getHeight());
+        m.setMerkleRoot(block.getMerkleRoot());
+        m.setValidatorAddress(block.getValidatorAddress());
+        m.setValidatorSignature(block.getValidatorSignature() != null ? block.getValidatorSignature() : "");
+        m.setTransactionCount(block.getTransactions() != null ? block.getTransactions().size() : 0);
+        m.setStatus(block.getStatus());
+        m.setTimestamp(block.getTimestamp());
+        m.setLeveldbKey("block:" + block.getCurrentHash());
+        return m;
+    }
+
+    private TransactionMetadata toTransactionMetadata(Transaction tx, String blockHash) {
+        TransactionMetadata m = new TransactionMetadata();
+        m.setId(tx.getId());
+        m.setSenderId(tx.getSenderId());
+        m.setTransactionType(tx.getTransactionType());
+        m.setStatus(tx.getStatus());
+        m.setBlockHash(blockHash);
+        m.setPayloadHash(tx.getPayloadHash());
+        m.setContentType(tx.getContentType());
+        m.setContentSize(tx.getPayload() != null ? (long) tx.getPayload().getBytes(java.nio.charset.StandardCharsets.UTF_8).length : 0L);
+        m.setTimestamp(tx.getTimestamp());
+        m.setLeveldbKey("tx:" + tx.getId());
+        return m;
     }
 
     private Optional<String> getNextValidatorAddress() {
