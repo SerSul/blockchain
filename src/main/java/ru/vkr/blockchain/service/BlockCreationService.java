@@ -24,7 +24,7 @@ import java.util.Optional;
 @Slf4j
 public class BlockCreationService {
 
-    private static final String GENESIS_PREVIOUS_HASH = "0";
+    private static final String GENESIS_PREVIOUS_HASH = "0000000000000000000000000000000000000000000000000000000000000000";
 
     private final BlockService blockService;
     private final CryptoService cryptoService;
@@ -105,6 +105,24 @@ public class BlockCreationService {
         return blockService.findLatest()
                 .map(b -> b.getHeight() + 1)
                 .orElse(0);
+    }
+
+    /**
+     * Создаёт детерминированный genesis-блок (height=0, previousHash="0").
+     * Вызывается после создания первого аккаунта (админа).
+     */
+    public void createGenesisBlock(String validatorAddress) {
+        if (blockService.findLatest().isPresent()) {
+            throw new IllegalStateException("Genesis block already exists");
+        }
+        String merkleRoot = cryptoService.calculateMerkleRoot(List.of());
+        Block block = createBlockStructure(0, GENESIS_PREVIOUS_HASH, validatorAddress, merkleRoot, List.of());
+        block.setCurrentHash(block.calculateHash());
+        block.setValidatorSignature("");
+        block.setStatus(BlockStatus.CONFIRMED);
+        block.setTimestamp(block.getTimestamp() != null ? block.getTimestamp() : java.time.LocalDateTime.now());
+        blockService.save(block);
+        log.info("Genesis block created: hash={}", block.getCurrentHash());
     }
 
     private Optional<String> getNextValidatorAddress() {

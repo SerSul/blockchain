@@ -16,18 +16,24 @@ import ru.vkr.blockchain.dto.UpdateAccountRolesPayload;
 import ru.vkr.blockchain.exception.user.UserNotFoundException;
 import ru.vkr.blockchain.repository.AccountRepository;
 import ru.vkr.blockchain.repository.PendingTransactionRepository;
+import ru.vkr.blockchain.service.domain.BlockService;
 import ru.vkr.blockchain.service.domain.TransactionService;
 
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
 public class AccountService {
 
+    private static final String BOOTSTRAP_SENDER = "BOOTSTRAP_FIRST_ADMIN";
+
     private final CryptoService cryptoService;
     private final AccountRepository accountRepository;
     private final PendingTransactionRepository pendingTransactionRepository;
     private final TransactionService transactionService;
+    private final BlockService blockService;
+    private final BlockCreationService blockCreationService;
     private final ObjectMapper objectMapper;
 
     @Getter
@@ -36,9 +42,13 @@ public class AccountService {
 
     @RequireRole({AccountRole.ADMIN, AccountRole.VALIDATOR})
     public void createAccount(CreateTransactionRequest createTransactionRequest) {
-
         var newUserPublicKeyBase64 = createTransactionRequest.getPayload();
         var newUserAddress = cryptoService.generateAddress(newUserPublicKeyBase64);
+
+        if (isBootstrapMode()) {
+            createFirstAdminAndGenesis(createTransactionRequest, newUserPublicKeyBase64, newUserAddress);
+            return;
+        }
 
         Object lock = accountLocks.computeIfAbsent(newUserAddress, k -> new Object());
 
@@ -74,6 +84,33 @@ public class AccountService {
                 accountLocks.remove(newUserAddress, lock);
             } // todo создавать auditLog
         }
+    }
+
+    /**
+     * Режим bootstrap: ещё нет ни одного аккаунта и ни одного блока.
+     */
+    private boolean isBootstrapMode() {
+        return accountRepository.findAll().isEmpty() && blockService.findLatest().isEmpty();
+    }
+
+    /**
+     * Создаёт первого пользователя как админа (с полным набором ролей) и создаёт genesis-блок.
+     */
+    private void createFirstAdminAndGenesis(CreateTransactionRequest request, String publicKeyBase64, String address) {
+        if (!cryptoService.checkSignatureValid(
+                request.getPayload(),
+                request.getSignature(),
+                request.getCreatorPublicKey())) {
+            throw new SecurityException("Invalid signature for account creation");
+        }
+        Account admin = new Account(address, publicKeyBase64, BOOTSTRAP_SENDER);
+        admin.setAccountRoles(List.of(AccountRole.ADMIN, AccountRole.USER, AccountRole.AUDITOR, AccountRole.VALIDATOR));
+        try {
+            accountRepository.save(admin);
+        } catch (java.io.IOException e) {
+            throw new RuntimeException("Failed to save bootstrap admin", e);
+        }
+        blockCreationService.createGenesisBlock(address);
     }
 
     @RequireRole(AccountRole.ADMIN)

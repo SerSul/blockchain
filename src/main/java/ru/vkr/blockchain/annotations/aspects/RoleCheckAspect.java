@@ -12,6 +12,7 @@ import ru.vkr.blockchain.dto.CreateTransactionRequest;
 import ru.vkr.blockchain.domain.model.enums.AccountRole;
 import ru.vkr.blockchain.repository.AccountRepository;
 import ru.vkr.blockchain.service.CryptoService;
+import ru.vkr.blockchain.service.domain.BlockService;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -25,6 +26,7 @@ import java.util.stream.Collectors;
 public class RoleCheckAspect {
     private final AccountRepository accountRepository;
     private final CryptoService cryptoService;
+    private final BlockService blockService;
 
     @Before("@annotation(ru.vkr.blockchain.annotations.RequireRole)")
     public void checkRole(JoinPoint joinPoint) {
@@ -33,6 +35,12 @@ public class RoleCheckAspect {
         RequireRole requireRole = method.getAnnotation(RequireRole.class);
 
         if (requireRole == null) {
+            return;
+        }
+
+        if ("createAccount".equals(method.getName())
+                && accountRepository.findAll().isEmpty()
+                && blockService.findLatest().isEmpty()) {
             return;
         }
 
