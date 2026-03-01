@@ -124,24 +124,32 @@ public class BlockCreationService {
     }
 
     /**
-     * Создаёт детерминированный genesis-блок (height=0, previousHash="0").
-     * Вызывается после создания первого аккаунта (админа).
+     * Создаёт детерминированный genesis-блок (height=0).
+     * Если передан непустой список транзакций (bootstrap), они включаются в блок и применяются.
      */
-    public void createGenesisBlock(String validatorAddress) {
+    public void createGenesisBlock(String validatorAddress, List<Transaction> transactions) {
         if (blockService.findLatest().isPresent()) {
             throw new IllegalStateException("Genesis block already exists");
         }
-        String merkleRoot = cryptoService.calculateMerkleRoot(List.of());
-        Block block = createBlockStructure(0, GENESIS_PREVIOUS_HASH, validatorAddress, merkleRoot, List.of());
+        List<Transaction> txList = transactions != null ? transactions : List.of();
+        String merkleRoot = cryptoService.calculateMerkleRoot(
+                txList.stream().map(Transaction::calculateHash).toList());
+        Block block = createBlockStructure(0, GENESIS_PREVIOUS_HASH, validatorAddress, merkleRoot, txList);
         block.setCurrentHash(block.calculateHash());
         block.setValidatorSignature("");
         block.setStatus(BlockStatus.CONFIRMED);
         block.setTimestamp(block.getTimestamp() != null ? block.getTimestamp() : java.time.LocalDateTime.now());
         blockService.save(block);
         blockMetadataRepository.save(toBlockMetadata(block));
+        if (!txList.isEmpty()) {
+            applyTransactions(txList);
+            for (Transaction tx : txList) {
+                transactionMetadataRepository.save(toTransactionMetadata(tx, block.getCurrentHash()));
+            }
+        }
         auditLogRepository.save(new AuditLog(ENTITY_BLOCK, block.getCurrentHash(), "CREATE_GENESIS", validatorAddress,
-                "height=0"));
-        log.info("Genesis block created: hash={}", block.getCurrentHash());
+                "height=0, txCount=" + txList.size()));
+        log.info("Genesis block created: hash={}, txCount={}", block.getCurrentHash(), txList.size());
     }
 
     private BlockMetadata toBlockMetadata(Block block) {

@@ -28,8 +28,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class AccountService {
 
-    private static final String BOOTSTRAP_SENDER = "BOOTSTRAP_FIRST_ADMIN";
-
     private final CryptoService cryptoService;
     private final AccountRepository accountRepository;
     private final PendingTransactionRepository pendingTransactionRepository;
@@ -97,7 +95,8 @@ public class AccountService {
     }
 
     /**
-     * Создаёт первого пользователя как админа (с полным набором ролей) и создаёт genesis-блок.
+     * Первый пользователь создаётся через транзакцию CREATE_ACCOUNT в genesis-блоке.
+     * Транзакция применяется при создании блока; первый аккаунт получает роли админа в TransactionApplierService.
      */
     private void createFirstAdminAndGenesis(CreateTransactionRequest request, String publicKeyBase64, String address) {
         if (!cryptoService.checkSignatureValid(
@@ -106,16 +105,8 @@ public class AccountService {
                 request.getCreatorPublicKey())) {
             throw new SecurityException("Invalid signature for account creation");
         }
-        Account admin = new Account(address, publicKeyBase64, BOOTSTRAP_SENDER);
-        admin.setAccountRoles(List.of(AccountRole.ADMIN, AccountRole.USER, AccountRole.AUDITOR, AccountRole.VALIDATOR));
-        try {
-            accountRepository.save(admin);
-        } catch (java.io.IOException e) {
-            throw new RuntimeException("Failed to save bootstrap admin", e);
-        }
-        blockCreationService.createGenesisBlock(address);
-        auditLogRepository.save(new AuditLog("ACCOUNT", address, "BOOTSTRAP_CREATE", address,
-                "First admin created, genesis block created"));
+        Transaction transaction = transactionService.createTransaction(request);
+        blockCreationService.createGenesisBlock(address, List.of(transaction));
     }
 
     @RequireRole(AccountRole.ADMIN)

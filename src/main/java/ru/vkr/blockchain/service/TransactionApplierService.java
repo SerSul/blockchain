@@ -62,14 +62,21 @@ public class TransactionApplierService {
             throw new IllegalStateException("Account already exists: " + address);
         }
 
+        boolean isFirstAccount = accountRepository.findAll().isEmpty();
         Account account = new Account(address, publicKeyBase64, tx.getSenderId());
+        if (isFirstAccount) {
+            account.setAccountRoles(new ArrayList<>(List.of(AccountRole.ADMIN, AccountRole.USER, AccountRole.AUDITOR, AccountRole.VALIDATOR)));
+        }
         try {
             accountRepository.save(account);
         } catch (IOException e) {
             throw new RuntimeException("Failed to save account", e);
         }
-        auditLogRepository.save(new AuditLog(ENTITY_ACCOUNT, address, "CREATE_ACCOUNT", tx.getSenderId(),
-                "Transaction " + tx.getId()));
+        String details = "Transaction " + tx.getId();
+        if (isFirstAccount) {
+            details += " (first account, roles: ADMIN, USER, AUDITOR, VALIDATOR)";
+        }
+        auditLogRepository.save(new AuditLog(ENTITY_ACCOUNT, address, "CREATE_ACCOUNT", tx.getSenderId(), details));
     }
 
     private void applyUpdateAccountRoles(Transaction tx) {
