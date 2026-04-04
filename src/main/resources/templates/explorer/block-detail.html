@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head th:replace="~{fragments/explorer :: head ('Блок')}">
+    <title>Блок</title>
+</head>
+<body>
+<div th:replace="~{fragments/explorer :: nav}"></div>
+<main>
+    <div class="back">
+        <a th:href="@{/explorer/blocks}">← К списку блоков</a>
+    </div>
+
+    <div class="card empty" th:if="${notFound}">
+        <p>Блок с хешем <span class="mono" th:text="${hash}">…</span> не найден.</p>
+    </div>
+
+    <th:block th:if="${metadataOnly == true && metadata != null}">
+        <h1>Блок <span class="muted" th:text="'#' + ${metadata.height}">#0</span></h1>
+        <p class="muted">Полные данные блока в LevelDB недоступны; показаны только метаданные из БД.</p>
+        <div class="card">
+            <dl class="grid">
+                <dt>Хеш</dt>
+                <dd th:text="${metadata.hash}">—</dd>
+                <dt>Предыдущий хеш</dt>
+                <dd th:text="${metadata.previousHash}">—</dd>
+                <dt>Высота</dt>
+                <dd th:text="${metadata.height}">—</dd>
+                <dt>Merkle root</dt>
+                <dd th:text="${metadata.merkleRoot}">—</dd>
+                <dt>Валидатор</dt>
+                <dd th:text="${metadata.validatorAddress}">—</dd>
+                <dt>Транзакций</dt>
+                <dd th:text="${metadata.transactionCount}">—</dd>
+                <dt>Время</dt>
+                <dd th:text="${#temporals.format(metadata.timestamp, 'yyyy-MM-dd HH:mm:ss')}">—</dd>
+                <dt>Статус</dt>
+                <dd><span class="badge" th:text="${metadata.status}">—</span></dd>
+            </dl>
+        </div>
+    </th:block>
+
+    <th:block th:if="${block != null}">
+        <h1>Блок <span class="muted" th:text="'#' + ${block.height}">#0</span></h1>
+        <div class="card">
+            <dl class="grid">
+                <dt>Хеш</dt>
+                <dd th:text="${block.hash}">—</dd>
+                <dt>Предыдущий хеш</dt>
+                <dd th:text="${block.previousHash}">—</dd>
+                <dt>Высота</dt>
+                <dd th:text="${block.height}">—</dd>
+                <dt>Merkle root</dt>
+                <dd th:text="${block.merkleRoot}">—</dd>
+                <dt>Валидатор</dt>
+                <dd th:text="${block.validatorAddress}">—</dd>
+                <dt>Подпись валидатора</dt>
+                <dd th:text="${block.validatorSignature != null && !block.validatorSignature.isEmpty() ? block.validatorSignature : '—'}">—</dd>
+                <dt>Время</dt>
+                <dd th:text="${#temporals.format(block.timestamp, 'yyyy-MM-dd HH:mm:ss')}">—</dd>
+                <dt>Статус</dt>
+                <dd><span class="badge" th:text="${block.status}">—</span></dd>
+            </dl>
+        </div>
+
+        <h2 style="margin-top: 1.5rem; font-size: 1.15rem;">Транзакции (<span th:text="${block.transactions != null ? block.transactions.size() : 0}">0</span>)</h2>
+
+        <div class="card" th:if="${block.transactions != null && !block.transactions.isEmpty()}">
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Тип</th>
+                    <th>Отправитель</th>
+                    <th>Статус</th>
+                    <th>Время</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="tx : ${block.transactions}">
+                    <td class="mono">
+                        <a class="hash-link" th:href="@{/explorer/transactions/{id}(id=${tx.id})}" th:text="${#strings.substring(tx.id,0,8)} + '…'">—</a>
+                    </td>
+                    <td th:text="${tx.transactionType}">—</td>
+                    <td class="mono muted" th:text="${tx.senderId != null ? (#strings.length(tx.senderId) > 16 ? #strings.substring(tx.senderId,0,14) + '…' : tx.senderId) : '—'}">—</td>
+                    <td><span class="badge" th:text="${tx.status}">—</span></td>
+                    <td th:text="${tx.timestamp != null ? #temporals.format(tx.timestamp, 'yyyy-MM-dd HH:mm:ss') : '—'}">—</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card empty" th:if="${block.transactions == null || block.transactions.isEmpty()}">
+            В блоке нет транзакций.
+        </div>
+
+        <details class="card" style="margin-top: 1rem;" th:if="${block.transactions != null && !block.transactions.isEmpty()}">
+            <summary style="cursor: pointer; color: var(--muted);">Payload по транзакциям</summary>
+            <table style="margin-top: 0.75rem;">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Payload</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="tx : ${block.transactions}">
+                    <td class="mono" th:text="${#strings.substring(tx.id,0,8)} + '…'">—</td>
+                    <td class="mono" th:text="${tx.payload != null ? tx.payload : '—'}">—</td>
+                </tr>
+                </tbody>
+            </table>
+        </details>
+    </th:block>
+</main>
+</body>
+</html>

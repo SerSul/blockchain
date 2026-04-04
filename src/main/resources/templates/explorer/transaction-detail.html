@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head th:replace="~{fragments/explorer :: head ('Транзакция')}">
+    <title>Транзакция</title>
+</head>
+<body>
+<div th:replace="~{fragments/explorer :: nav}"></div>
+<main>
+    <div class="back">
+        <a th:href="@{/explorer/blocks}">← К блокам</a>
+    </div>
+
+    <div class="card empty" th:if="${notFound}">
+        <p>Транзакция <span class="mono" th:text="${id}">…</span> не найдена.</p>
+    </div>
+
+    <th:block th:if="${tx != null}">
+        <h1>Транзакция</h1>
+        <div class="card">
+            <dl class="grid">
+                <dt>ID</dt>
+                <dd th:text="${tx.id}">—</dd>
+                <dt>Тип</dt>
+                <dd th:text="${tx.transactionType}">—</dd>
+                <dt>Отправитель</dt>
+                <dd th:text="${tx.senderId}">—</dd>
+                <dt>Статус</dt>
+                <dd><span class="badge" th:text="${tx.status}">—</span></dd>
+                <dt>Блок</dt>
+                <dd>
+                    <th:block th:if="${blockLink != null}">
+                        <a class="hash-link" th:href="@{/explorer/blocks/{h}(h=${blockLink})}" th:text="${blockLink}">—</a>
+                    </th:block>
+                    <span th:if="${blockLink == null}" class="muted">pending / нет</span>
+                </dd>
+                <dt>Payload hash</dt>
+                <dd th:text="${tx.payloadHash}">—</dd>
+                <dt>Content-Type</dt>
+                <dd th:text="${tx.contentType != null ? tx.contentType : '—'}">—</dd>
+                <dt>Размер</dt>
+                <dd th:text="${tx.contentSize != null ? tx.contentSize : '—'}">—</dd>
+                <dt>Время</dt>
+                <dd th:text="${tx.timestamp != null ? #temporals.format(tx.timestamp, 'yyyy-MM-dd HH:mm:ss') : '—'}">—</dd>
+                <dt>Payload</dt>
+                <dd class="mono" th:text="${tx.payload != null ? tx.payload : '—'}">—</dd>
+            </dl>
+        </div>
+    </th:block>
+</main>
+</body>
+</html>

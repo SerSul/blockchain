@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head th:replace="~{fragments/explorer :: head ('Список блоков')}">
+    <title>Блоки</title>
+</head>
+<body>
+<div th:replace="~{fragments/explorer :: nav}"></div>
+<main>
+    <h1>Блоки</h1>
+
+    <form class="card filters" method="get" th:action="@{/explorer/blocks}">
+        <label>Высота от
+            <input type="number" name="heightFrom" th:value="${heightFrom}"/>
+        </label>
+        <label>Высота до
+            <input type="number" name="heightTo" th:value="${heightTo}"/>
+        </label>
+        <label>Валидатор
+            <input type="text" name="validatorAddress" th:value="${validatorAddress}" placeholder="0x..." style="min-width: 280px;"/>
+        </label>
+        <label>На странице
+            <input type="number" name="size" th:value="${size}" min="5" max="100"/>
+        </label>
+        <input type="hidden" name="page" value="0"/>
+        <button type="submit" class="btn">Применить</button>
+    </form>
+
+    <div class="card" th:if="${page != null && !page.content.isEmpty()}">
+        <table>
+            <thead>
+            <tr>
+                <th>Высота</th>
+                <th>Хеш</th>
+                <th>Предыдущий</th>
+                <th>Транзакций</th>
+                <th>Валидатор</th>
+                <th>Время</th>
+                <th>Статус</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="b : ${page.content}">
+                <td th:text="${b.height}">0</td>
+                <td class="mono">
+                    <a class="hash-link" th:href="@{/explorer/blocks/{h}(h=${b.hash})}" th:text="${#strings.substring(b.hash,0,12)} + '…'">abc…</a>
+                </td>
+                <td class="mono muted" th:text="${b.previousHash != null ? #strings.substring(b.previousHash,0,10) + '…' : '—'}">—</td>
+                <td th:text="${b.transactionCount}">0</td>
+                <td class="mono muted" th:text="${#strings.substring(b.validatorAddress,0,14)} + '…'">0x…</td>
+                <td th:text="${#temporals.format(b.timestamp, 'yyyy-MM-dd HH:mm:ss')}">—</td>
+                <td><span class="badge" th:text="${b.status}">CONFIRMED</span></td>
+            </tr>
+            </tbody>
+        </table>
+
+        <div class="pagination" th:if="${page.totalPages > 1}">
+            <a th:if="${page.number > 0}"
+               th:href="@{/explorer/blocks(page=${page.number - 1}, size=${size}, heightFrom=${heightFrom}, heightTo=${heightTo}, validatorAddress=${validatorAddress})}">← Назад</a>
+            <span th:if="${page.number == 0}" class="disabled">← Назад</span>
+            <span class="muted">Страница <span th:text="${page.number + 1}">1</span> из <span th:text="${page.totalPages}">1</span>
+                (<span th:text="${page.totalElements}">0</span> блоков)</span>
+            <a th:if="${!page.last}"
+               th:href="@{/explorer/blocks(page=${page.number + 1}, size=${size}, heightFrom=${heightFrom}, heightTo=${heightTo}, validatorAddress=${validatorAddress})}">Вперёд →</a>
+            <span th:if="${page.last}" class="disabled">Вперёд →</span>
+        </div>
+    </div>
+
+    <div class="card empty" th:if="${page == null || page.content.isEmpty()}">
+        Нет блоков в метаданных. Создайте genesis и блоки через API.
+    </div>
+</main>
+</body>
+</html>
