@@ -30,8 +30,3 @@ leveldb:
   path: ./data/leveldb
   create-if-missing: true
   cache-size: 104857600
-
-blockchain:
-  bootstrap:
-    # Начальный список пиров (адреса нод для P2P). Добавляются при первом запуске, если список пиров пуст.
-    peers: ["http://localhost:8081"]

@@ -5,6 +5,4 @@ public enum TransactionType {
     UPDATE_ACCOUNT_ROLES,     // Изменение ролей аккаунта (админ → валидатор и т.д.)
     DEACTIVATE_ACCOUNT,       // Деактивация аккаунта
     STORE_DATA,               // Сохранение данных
-    ADD_PEER,                 // Добавление пира в сеть (только ADMIN)
-    REMOVE_PEER,              // Удаление пира из сети (только ADMIN)
 }

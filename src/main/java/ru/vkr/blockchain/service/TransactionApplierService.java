@@ -9,14 +9,11 @@ import ru.vkr.blockchain.domain.model.Transaction;
 import ru.vkr.blockchain.domain.model.enums.AccountRole;
 import ru.vkr.blockchain.domain.model.enums.TransactionStatus;
 import ru.vkr.blockchain.domain.model.enums.TransactionType;
-import ru.vkr.blockchain.dto.AddPeerPayload;
 import ru.vkr.blockchain.dto.CreateAccountPayload;
 import ru.vkr.blockchain.dto.DeactivateAccountPayload;
-import ru.vkr.blockchain.dto.RemovePeerPayload;
 import ru.vkr.blockchain.dto.UpdateAccountRolesPayload;
 import ru.vkr.blockchain.exception.user.UserNotFoundException;
 import ru.vkr.blockchain.repository.AccountRepository;
-import ru.vkr.blockchain.repository.PeerRepository;
 import ru.vkr.blockchain.repository.entity.AuditLogRepository;
 import ru.vkr.blockchain.domain.entity.AuditLog;
 
@@ -34,11 +31,9 @@ public class TransactionApplierService {
 
     private static final String ENTITY_ACCOUNT = "ACCOUNT";
     private static final String ENTITY_TRANSACTION = "TRANSACTION";
-    private static final String ENTITY_PEER = "PEER";
 
     private final CryptoService cryptoService;
     private final AccountRepository accountRepository;
-    private final PeerRepository peerRepository;
     private final AuditLogRepository auditLogRepository;
     private final ObjectMapper objectMapper;
 
@@ -55,8 +50,6 @@ public class TransactionApplierService {
             case UPDATE_ACCOUNT_ROLES -> applyUpdateAccountRoles(transaction);
             case DEACTIVATE_ACCOUNT -> applyDeactivateAccount(transaction);
             case STORE_DATA -> applyStoreData(transaction);
-            case ADD_PEER -> applyAddPeer(transaction);
-            case REMOVE_PEER -> applyRemovePeer(transaction);
         }
 
         transaction.setStatus(TransactionStatus.CONFIRMED);
@@ -136,20 +129,6 @@ public class TransactionApplierService {
     private void applyStoreData(Transaction tx) {
         // STORE_DATA — данные уже в payload транзакции, блок сохраняет их.
         auditLogRepository.save(new AuditLog(ENTITY_TRANSACTION, tx.getId(), "STORE_DATA", tx.getSenderId(),
-                "Transaction " + tx.getId()));
-    }
-
-    private void applyAddPeer(Transaction tx) {
-        AddPeerPayload payload = parsePayload(tx.getPayload(), AddPeerPayload.class);
-        peerRepository.add(payload.getPeerUrl());
-        auditLogRepository.save(new AuditLog(ENTITY_PEER, payload.getPeerUrl(), "ADD_PEER", tx.getSenderId(),
-                "Transaction " + tx.getId()));
-    }
-
-    private void applyRemovePeer(Transaction tx) {
-        RemovePeerPayload payload = parsePayload(tx.getPayload(), RemovePeerPayload.class);
-        peerRepository.remove(payload.getPeerUrl());
-        auditLogRepository.save(new AuditLog(ENTITY_PEER, payload.getPeerUrl(), "REMOVE_PEER", tx.getSenderId(),
                 "Transaction " + tx.getId()));
     }
 

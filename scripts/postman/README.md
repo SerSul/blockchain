@@ -4,8 +4,7 @@
 
 | Файл | Описание |
 |------|----------|
-| **Blockchain API.postman_collection.json** | Всё API: аккаунты, блоки, транзакции, пиры |
-| **Blockchain Peers.postman_collection.json** | Только пиры (ADD_PEER / REMOVE_PEER) |
+| **Blockchain API.postman_collection.json** | Всё API: аккаунты, блоки, транзакции |
 
 ## Окружение
 
@@ -16,56 +15,6 @@
 1. Postman → Import → выберите нужные файлы (коллекции и окружение).
 2. Выберите окружение **Blockchain Local** в выпадающем списке (или задайте переменные в коллекции).
 
-## Как получить подписанное тело запроса
+## Подписи
 
-Транзакции ADD_PEER и REMOVE_PEER подписываются приватным ключом **админа**. Подпись ставится от строки **payload** (JSON без пробелов, например `{"peer_url":"http://localhost:8081"}`).
-
-### Скрипт (рекомендуется)
-
-Всегда вызывайте скрипт через **`python`**, иначе в PowerShell команда не найдётся.
-
-**Из корня проекта** (`C:\...\blockchain`):
-
-```powershell
-# Добавить пира
-python scripts/build_peer_request.py -k путь/к/admin_private.pem --creator-public-key "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEQVNEX6B8O7klyIptmsKafVCsTMZLcGRkzOIfGfQbnq1XerWqTA3MzPFNhk5ULbXYn3Xl3hi7kQvzCRMRLHmN7w==" --peer-url "http://localhost:8081" --action add
-
-# Удалить пира
-python scripts/build_peer_request.py -k путь/к/admin_private.pem --creator-public-key "MFkw..." --peer-url "http://localhost:8081" --action remove
-```
-
-**Из папки scripts** (`C:\...\blockchain\scripts`):
-
-```powershell
-python .\build_peer_request.py -k admin_private.pem --creator-public-key "MFkw..." --peer-url "http://localhost:8081" --action add
-```
-
-Скрипт выведет готовый JSON. Скопируйте его в Body запроса **ADD_PEER — добавить пира** или **REMOVE_PEER — удалить пира** (raw, JSON).
-
-### Ручная подпись
-
-1. Payload для подписи — строка: `{"peer_url":"http://localhost:8081"}` (без пробелов).
-2. Подпишите её скриптом `sign_payload.py`:
-   ```bash
-   python scripts/sign_payload.py -k admin.pem -p '{"peer_url":"http://localhost:8081"}'
-   ```
-3. В Body запроса укажите:
-   - `payload`: `{"peer_url":"http://localhost:8081"}`
-   - `creator_public_key`: публичный ключ админа (Base64)
-   - `signature`: вывод скрипта выше
-   - `transaction_type`: `ADD_PEER` или `REMOVE_PEER`
-
-## Запросы в коллекции
-
-| Запрос              | Метод | URL                      | Описание        |
-|---------------------|-------|--------------------------|-----------------|
-| Список пиров        | GET   | `/api/peers`             | Список пиров    |
-| ADD_PEER            | POST  | `/api/peers`             | Добавить пира   |
-| REMOVE_PEER         | POST  | `/api/peers/remove`      | Удалить пира    |
-
-Пир реально добавляется/удаляется после того, как транзакция попадёт в блок (валидатор создаёт блок с pending-транзакциями).
-
----
-
-
-Подписи для транзакций: см. скрипты в `scripts/` (sign_payload.py, build_create_account_request.py, build_peer_request.py).
+Для транзакций используйте скрипты в `scripts/`: **sign_payload.py**, **build_create_account_request.py** (см. `scripts/README.md`).
