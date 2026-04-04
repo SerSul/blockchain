@@ -67,18 +67,5 @@ python .\build_peer_request.py -k admin_private.pem --creator-public-key "MFkw..
 
 ---
 
-## Полное API (коллекция Blockchain API)
-
-| Раздел | Метод | URL | Описание |
-|--------|-------|-----|----------|
-| **Accounts** | POST | `/api/accounts` | CREATE_ACCOUNT |
-| | PATCH | `/api/accounts/roles` | UPDATE_ACCOUNT_ROLES (ADMIN) |
-| | POST | `/api/accounts/deactivate` | DEACTIVATE_ACCOUNT (ADMIN) |
-| **Blocks** | GET | `/api/blocks/next-validator` | Следующий валидатор |
-| | POST | `/api/blocks` | Создать блок (валидатор) |
-| **Transactions** | POST | `/api/transactions/store` | STORE_DATA |
-| **Peers** | GET | `/api/peers` | Список пиров |
-| | POST | `/api/peers` | ADD_PEER (ADMIN) |
-| | POST | `/api/peers/remove` | REMOVE_PEER (ADMIN) |
 
 Подписи для транзакций: см. скрипты в `scripts/` (sign_payload.py, build_create_account_request.py, build_peer_request.py).

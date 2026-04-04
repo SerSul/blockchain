@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.vkr.blockchain.dto.CreateBlockRequest;
+import ru.vkr.blockchain.dto.PrepareBlockResponse;
 import ru.vkr.blockchain.domain.model.Block;
 import ru.vkr.blockchain.domain.model.Transaction;
 import ru.vkr.blockchain.domain.model.enums.BlockStatus;
@@ -41,6 +42,22 @@ public class BlockCreationService {
     private final AuditLogRepository auditLogRepository;
     private final BlockMetadataRepository blockMetadataRepository;
     private final TransactionMetadataRepository transactionMetadataRepository;
+
+    /**
+     * Подготовка блока: возвращает хеш для подписи и данные (timestamp, transaction_ids)
+     * для последующего вызова createBlock. Валидатор подписывает hash_to_sign и отправляет
+     * createBlock с тем же timestamp и transaction_ids.
+     */
+    public PrepareBlockResponse prepareBlock(List<String> transactionIds) {
+        String validatorAddress = getNextValidatorAddress()
+                .orElseThrow(() -> new IllegalStateException("No validators in the network"));
+        List<Transaction> transactions = resolveTransactions(transactionIds);
+        LocalDateTime timestamp = LocalDateTime.now();
+        Block block = buildBlock(validatorAddress, timestamp, transactions);
+        String hashToSign = block.calculateHash();
+        List<String> idsInOrder = transactions.stream().map(Transaction::getId).toList();
+        return new PrepareBlockResponse(hashToSign, timestamp, block.getHeight(), idsInOrder);
+    }
 
     /**
      * Создаёт блок после проверки подписи валидатора.
