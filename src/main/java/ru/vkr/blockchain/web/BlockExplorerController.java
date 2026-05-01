@@ -47,6 +47,17 @@ public class BlockExplorerController {
         return "explorer/blocks";
     }
 
+    @GetMapping("/pending")
+    public String listPendingTransactions(
+            Model model,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        PageResponse<TransactionDto> result = transactionQueryService.getPendingTransactionsPage(page, size);
+        model.addAttribute("page", result);
+        model.addAttribute("size", size);
+        return "explorer/pending-transactions";
+    }
+
     @GetMapping("/blocks/{hash}")
     public String blockDetail(@PathVariable String hash, Model model) {
         Optional<BlockDto> block = blockQueryService.getBlockByHash(hash);

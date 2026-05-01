@@ -19,6 +19,7 @@ import ru.vkr.blockchain.repository.entity.TransactionMetadataRepository;
 import ru.vkr.blockchain.service.domain.BlockService;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -37,13 +38,17 @@ public class TransactionQueryService {
     public PageResponse<TransactionDto> getTransactions(TransactionStatus status, String blockHash, String senderId,
                                                         TransactionType transactionType, int page, int size, String sortBy, String sortDir) {
         if (status == TransactionStatus.PENDING) {
-            return getPendingTransactions(page, size);
+            return getPendingTransactionsPage(page, size);
         }
         return getConfirmedTransactions(status, blockHash, senderId, transactionType, page, size, sortBy, sortDir);
     }
 
-    private PageResponse<TransactionDto> getPendingTransactions(int page, int size) {
+    /**
+     * Pending-транзакции из LevelDB с пагинацией (новые сверху).
+     */
+    public PageResponse<TransactionDto> getPendingTransactionsPage(int page, int size) {
         List<Transaction> all = new ArrayList<>(pendingTransactionRepository.findAll());
+        all.sort(Comparator.comparing(Transaction::getTimestamp, Comparator.nullsLast(Comparator.naturalOrder())).reversed());
         int total = all.size();
         int totalPages = size > 0 ? (int) Math.ceil((double) total / size) : 1;
         int from = Math.min(page * size, total);

@@ -37,7 +37,7 @@
 - [ ] API: GET /peers, управление списком
 
 ### 2.2 Добавление/удаление пиров
-- [ ] TransactionType: ADD_PEER, REMOVE_PEER
+- [ ] TransactionType: ADD_PEER, REMOVE_PEER *(запланировано; в коде enum пока без них — не писать эти строки в `transactions_metadata`)*
 - [ ] DTO: AddPeerPayload, RemovePeerPayload
 - [ ] Обработка в TransactionApplierService
 - [ ] Право на добавление: только ADMIN

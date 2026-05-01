@@ -9,6 +9,7 @@ import ru.vkr.blockchain.service.LevelDBService;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -41,8 +42,14 @@ public class PendingTransactionRepository {
     }
 
     public void deleteAll(Collection<String> transactionIds) {
-        Map<String, byte[]> ops = transactionIds.stream()
-                .collect(java.util.stream.Collectors.toMap(PendingTransactionRepository::key, k -> (byte[]) null));
+        if (transactionIds == null || transactionIds.isEmpty()) {
+            return;
+        }
+        // Нельзя Collectors.toMap(..., null): в JDK значение null даёт NPE — удаление не выполнялось, tx оставались в pending.
+        Map<String, byte[]> ops = new HashMap<>();
+        for (String id : transactionIds) {
+            ops.put(key(id), null);
+        }
         levelDBService.batchWrite(ops);
         log.debug("Deleted {} pending transactions", transactionIds.size());
     }

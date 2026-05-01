@@ -53,7 +53,7 @@ public class LevelDBService {
             levelDB.write(batch);
             log.debug("Batch write completed: {} operations", operations.size());
         } catch (IOException e) {
-            log.error("Error closing batch", e);
+            throw new RuntimeException("LevelDB batch write failed", e);
         }
     }
 

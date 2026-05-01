@@ -3,6 +3,7 @@ package ru.vkr.blockchain.domain.model;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 import ru.vkr.blockchain.domain.model.enums.TransactionStatus;
 import ru.vkr.blockchain.domain.model.enums.TransactionType;
 
@@ -74,7 +75,7 @@ public class Transaction implements Serializable {
     public boolean isValid() {
         if (payload != null) {
             String calculatedHash = calculatePayloadHash();
-            if (calculatedHash == null || !calculatedHash.equals(payloadHash)) {
+            if (!calculatedHash.equals(payloadHash)) {
                 return false;
             }
         }
