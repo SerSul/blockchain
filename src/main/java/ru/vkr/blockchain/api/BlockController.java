@@ -7,6 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import ru.vkr.blockchain.domain.entity.BlockMetadata;
+import ru.vkr.blockchain.domain.model.Block;
+import ru.vkr.blockchain.domain.model.enums.BlockStatus;
 import ru.vkr.blockchain.domain.model.Account;
 import ru.vkr.blockchain.dto.ApiResponse;
 import ru.vkr.blockchain.dto.BlockDto;
@@ -15,6 +17,7 @@ import ru.vkr.blockchain.dto.PageResponse;
 import ru.vkr.blockchain.dto.PrepareBlockRequest;
 import ru.vkr.blockchain.dto.PrepareBlockResponse;
 import ru.vkr.blockchain.dto.TransactionDto;
+import ru.vkr.blockchain.mapper.BlockMapper;
 import ru.vkr.blockchain.service.BlockCreationService;
 import ru.vkr.blockchain.service.BlockQueryService;
 import ru.vkr.blockchain.service.ValidatorSelectionService;
@@ -28,6 +31,7 @@ public class BlockController {
     private final ValidatorSelectionService validatorSelectionService;
     private final BlockCreationService blockCreationService;
     private final BlockQueryService blockQueryService;
+    private final BlockMapper blockMapper;
 
     @GetMapping("/next-validator")
     public ResponseEntity<ApiResponse<Account>> getNextValidator() {
@@ -87,5 +91,22 @@ public class BlockController {
     public ResponseEntity<ApiResponse<List<TransactionDto>>> getBlockTransactions(@PathVariable String hash) {
         List<TransactionDto> transactions = blockQueryService.getBlockTransactions(hash);
         return ResponseEntity.ok(ApiResponse.success(transactions));
+    }
+
+    @GetMapping("/range")
+    public ResponseEntity<ApiResponse<List<BlockDto>>> getBlocksRange(
+            @RequestParam int fromHeight,
+            @RequestParam(defaultValue = "50") int limit) {
+        return ResponseEntity.ok(ApiResponse.success(blockQueryService.getBlocksRange(fromHeight, limit)));
+    }
+
+    @PostMapping("/sync")
+    public ResponseEntity<ApiResponse<String>> importBlockFromPeer(@RequestBody @Valid BlockDto blockDto) {
+        Block block = blockMapper.toDomain(blockDto);
+        if (block.getStatus() == null) {
+            block.setStatus(BlockStatus.CONFIRMED);
+        }
+        BlockCreationService.ImportResult result = blockCreationService.importExternalBlock(block, "peer-push");
+        return ResponseEntity.ok(ApiResponse.success(result.name()));
     }
 }

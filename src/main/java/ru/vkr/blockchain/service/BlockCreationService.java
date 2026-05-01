@@ -32,11 +32,13 @@ import java.util.Optional;
 public class BlockCreationService {
 
     private static final String GENESIS_PREVIOUS_HASH = "0000000000000000000000000000000000000000000000000000000000000000";
+    private static final LocalDateTime GENESIS_TIMESTAMP = LocalDateTime.of(2026, 1, 1, 0, 0, 0);
     private static final String ENTITY_BLOCK = "BLOCK";
 
     private final BlockService blockService;
     private final CryptoService cryptoService;
     private final AccountRepository accountRepository;
+    private final LevelDBService levelDBService;
     private final PendingTransactionRepository pendingTransactionRepository;
     private final TransactionApplierService transactionApplierService;
     private final AuditLogRepository auditLogRepository;
@@ -145,6 +147,10 @@ public class BlockCreationService {
      * Если передан непустой список транзакций (bootstrap), они включаются в блок и применяются.
      */
     public void createGenesisBlock(String validatorAddress, List<Transaction> transactions) {
+        createGenesisBlock(validatorAddress, transactions, GENESIS_TIMESTAMP);
+    }
+
+    public void createGenesisBlock(String validatorAddress, List<Transaction> transactions, LocalDateTime timestamp) {
         if (blockService.findLatest().isPresent()) {
             throw new IllegalStateException("Genesis block already exists");
         }
@@ -152,21 +158,79 @@ public class BlockCreationService {
         String merkleRoot = cryptoService.calculateMerkleRoot(
                 txList.stream().map(Transaction::calculateHash).toList());
         Block block = createBlockStructure(0, GENESIS_PREVIOUS_HASH, validatorAddress, merkleRoot, txList);
+        block.setTimestamp(timestamp != null ? timestamp : GENESIS_TIMESTAMP);
         block.setCurrentHash(block.calculateHash());
         block.setValidatorSignature("");
         block.setStatus(BlockStatus.CONFIRMED);
-        block.setTimestamp(block.getTimestamp() != null ? block.getTimestamp() : java.time.LocalDateTime.now());
+        persistCanonicalBlock(block, true, "CREATE_GENESIS");
+        log.info("Genesis block created: hash={}, txCount={}", block.getCurrentHash(), txList.size());
+    }
+
+    public ImportResult importExternalBlock(Block block, String sourcePeer) {
+        if (block == null || block.getCurrentHash() == null || block.getCurrentHash().isBlank()) {
+            return ImportResult.INVALID;
+        }
+        if (!block.validate()) {
+            return ImportResult.INVALID;
+        }
+        if (blockService.findByHash(block.getCurrentHash()).isPresent()) {
+            return ImportResult.ALREADY_EXISTS;
+        }
+        Optional<Block> latestOpt = blockService.findLatest();
+        if (latestOpt.isEmpty()) {
+            if (block.getHeight() != 0 || !GENESIS_PREVIOUS_HASH.equals(block.getPreviousHash())) {
+                storeForkCandidate(block, "non-genesis on empty local chain");
+                return ImportResult.FORK_CANDIDATE;
+            }
+            persistCanonicalBlock(block, true, "SYNC_IMPORT");
+            return ImportResult.IMPORTED;
+        }
+
+        Block latest = latestOpt.get();
+        boolean extendsTip = latest.getCurrentHash().equals(block.getPreviousHash())
+                && block.getHeight() == latest.getHeight() + 1;
+        if (!extendsTip) {
+            storeForkCandidate(block, "previousHash mismatch, source=" + sourcePeer);
+            return ImportResult.FORK_CANDIDATE;
+        }
+
+        persistCanonicalBlock(block, true, "SYNC_IMPORT");
+        return ImportResult.IMPORTED;
+    }
+
+    private void persistCanonicalBlock(Block block, boolean applyTx, String auditAction) {
         blockService.save(block);
         blockMetadataRepository.save(toBlockMetadata(block));
-        if (!txList.isEmpty()) {
-            applyTransactions(txList);
-            for (Transaction tx : txList) {
+        if (applyTx && block.getTransactions() != null && !block.getTransactions().isEmpty()) {
+            applyTransactions(block.getTransactions());
+            for (Transaction tx : block.getTransactions()) {
                 transactionMetadataRepository.save(toTransactionMetadata(tx, block.getCurrentHash()));
             }
+            pendingTransactionRepository.deleteAll(block.getTransactions().stream().map(Transaction::getId).toList());
         }
-        auditLogRepository.save(new AuditLog(ENTITY_BLOCK, block.getCurrentHash(), "CREATE_GENESIS", validatorAddress,
-                "height=0, txCount=" + txList.size()));
-        log.info("Genesis block created: hash={}, txCount={}", block.getCurrentHash(), txList.size());
+        auditLogRepository.save(new AuditLog(
+                ENTITY_BLOCK,
+                block.getCurrentHash(),
+                auditAction,
+                block.getValidatorAddress(),
+                "height=" + block.getHeight() + ", txCount=" + (block.getTransactions() != null ? block.getTransactions().size() : 0)));
+    }
+
+    private void storeForkCandidate(Block block, String reason) {
+        try {
+            String key = "fork_candidate:%08d:%s".formatted(block.getHeight(), block.getCurrentHash());
+            levelDBService.put(key, block.toBytes());
+            log.warn("Stored fork candidate block: h={}, hash={}, reason={}", block.getHeight(), block.getCurrentHash(), reason);
+        } catch (Exception e) {
+            log.error("Failed to store fork candidate {}", block.getCurrentHash(), e);
+        }
+    }
+
+    public enum ImportResult {
+        IMPORTED,
+        ALREADY_EXISTS,
+        FORK_CANDIDATE,
+        INVALID
     }
 
     private BlockMetadata toBlockMetadata(Block block) {

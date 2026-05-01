@@ -38,6 +38,7 @@ out/
 
 data
 test
-scripts
+__pycache__/
+*.pyc
 /docs/
-./scripts
+.env

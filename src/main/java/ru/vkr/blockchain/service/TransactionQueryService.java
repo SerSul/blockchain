@@ -14,6 +14,7 @@ import ru.vkr.blockchain.domain.model.enums.TransactionStatus;
 import ru.vkr.blockchain.domain.model.enums.TransactionType;
 import ru.vkr.blockchain.dto.PageResponse;
 import ru.vkr.blockchain.dto.TransactionDto;
+import ru.vkr.blockchain.mapper.TransactionMapper;
 import ru.vkr.blockchain.repository.PendingTransactionRepository;
 import ru.vkr.blockchain.repository.entity.TransactionMetadataRepository;
 import ru.vkr.blockchain.service.domain.BlockService;
@@ -30,6 +31,7 @@ public class TransactionQueryService {
     private final TransactionMetadataRepository transactionMetadataRepository;
     private final PendingTransactionRepository pendingTransactionRepository;
     private final BlockService blockService;
+    private final TransactionMapper transactionMapper;
 
     /**
      * Список транзакций с фильтрами и пагинацией.
@@ -54,7 +56,7 @@ public class TransactionQueryService {
         int from = Math.min(page * size, total);
         int to = Math.min(from + size, total);
         List<TransactionDto> content = all.subList(from, to).stream()
-                .map(this::toTransactionDtoFromDomain)
+                .map(transactionMapper::toDto)
                 .toList();
         return new PageResponse<>(content, total, totalPages, page, size);
     }
@@ -93,7 +95,7 @@ public class TransactionQueryService {
             result = transactionMetadataRepository.findAll(spec, pageable);
         }
         List<TransactionDto> content = result.getContent().stream()
-                .map(this::toTransactionDtoFromMetadata)
+                .map(transactionMapper::toDto)
                 .toList();
         return new PageResponse<>(
                 content,
@@ -110,7 +112,7 @@ public class TransactionQueryService {
     public Optional<TransactionDto> getTransactionById(String id) {
         Optional<TransactionMetadata> meta = transactionMetadataRepository.findById(id);
         if (meta.isPresent()) {
-            TransactionDto dto = toTransactionDtoFromMetadata(meta.get());
+            TransactionDto dto = transactionMapper.toDto(meta.get());
             blockService.findByHash(meta.get().getBlockHash())
                     .map(Block::getTransactions)
                     .stream().flatMap(List::stream)
@@ -122,35 +124,6 @@ public class TransactionQueryService {
         return pendingTransactionRepository.findAll().stream()
                 .filter(tx -> tx.getId().equals(id))
                 .findFirst()
-                .map(this::toTransactionDtoFromDomain);
-    }
-
-    private TransactionDto toTransactionDtoFromMetadata(TransactionMetadata m) {
-        return TransactionDto.builder()
-                .id(m.getId())
-                .senderId(m.getSenderId())
-                .transactionType(m.getTransactionType())
-                .status(m.getStatus())
-                .blockHash(m.getBlockHash())
-                .payloadHash(m.getPayloadHash())
-                .contentType(m.getContentType())
-                .contentSize(m.getContentSize())
-                .timestamp(m.getTimestamp())
-                .build();
-    }
-
-    private TransactionDto toTransactionDtoFromDomain(Transaction tx) {
-        return TransactionDto.builder()
-                .id(tx.getId())
-                .senderId(tx.getSenderId())
-                .transactionType(tx.getTransactionType())
-                .status(tx.getStatus())
-                .blockHash(null)
-                .payloadHash(tx.getPayloadHash())
-                .contentType(tx.getContentType())
-                .contentSize(tx.getPayload() != null ? (long) tx.getPayload().getBytes(java.nio.charset.StandardCharsets.UTF_8).length : null)
-                .timestamp(tx.getTimestamp())
-                .payload(tx.getPayload())
-                .build();
+                .map(transactionMapper::toDto);
     }
 }

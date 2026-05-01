@@ -9,13 +9,16 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import ru.vkr.blockchain.domain.entity.BlockMetadata;
 import ru.vkr.blockchain.domain.model.Block;
-import ru.vkr.blockchain.domain.model.Transaction;
 import ru.vkr.blockchain.dto.BlockDto;
 import ru.vkr.blockchain.dto.PageResponse;
 import ru.vkr.blockchain.dto.TransactionDto;
+import ru.vkr.blockchain.mapper.BlockMapper;
+import ru.vkr.blockchain.mapper.TransactionMapper;
 import ru.vkr.blockchain.repository.entity.BlockMetadataRepository;
+import ru.vkr.blockchain.service.LevelDBService;
 import ru.vkr.blockchain.service.domain.BlockService;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,6 +28,9 @@ public class BlockQueryService {
 
     private final BlockMetadataRepository blockMetadataRepository;
     private final BlockService blockService;
+    private final LevelDBService levelDBService;
+    private final BlockMapper blockMapper;
+    private final TransactionMapper transactionMapper;
 
     /**
      * Список блоков с фильтрами и пагинацией.
@@ -74,7 +80,7 @@ public class BlockQueryService {
      */
     public Optional<BlockDto> getBlockByHash(String hash) {
         return blockService.findByHash(hash)
-                .map(this::toBlockDto);
+                .map(blockMapper::toDto);
     }
 
     /**
@@ -82,6 +88,49 @@ public class BlockQueryService {
      */
     public Optional<BlockMetadata> getBlockMetadataByHash(String hash) {
         return blockMetadataRepository.findById(hash);
+    }
+
+    public Optional<BlockMetadata> getLatestMetadata() {
+        return blockMetadataRepository.findAllByOrderByHeightDesc(PageRequest.of(0, 1))
+                .stream()
+                .findFirst();
+    }
+
+    public List<BlockDto> getBlocksRange(int fromHeightInclusive, int limit) {
+        int cappedLimit = Math.max(1, Math.min(limit, 200));
+        int toHeight = fromHeightInclusive + cappedLimit - 1;
+        return blockMetadataRepository.findAllByHeightBetween(fromHeightInclusive, toHeight).stream()
+                .map(BlockMetadata::getHash)
+                .map(blockService::findByHash)
+                .flatMap(Optional::stream)
+                .map(blockMapper::toDto)
+                .toList();
+    }
+
+    public PageResponse<BlockDto> getForkCandidatesPage(int page, int size) {
+        List<BlockDto> all = levelDBService.scanPrefix("fork_candidate:").values().stream()
+                .map(bytes -> {
+                    try {
+                        return Block.fromBytes(bytes);
+                    } catch (Exception e) {
+                        return null;
+                    }
+                })
+                .filter(java.util.Objects::nonNull)
+                .sorted(Comparator
+                        .comparing(Block::getHeight, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .reversed()
+                        .thenComparing(Block::getTimestamp, Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(blockMapper::toDto)
+                .toList();
+
+        int safeSize = size > 0 ? size : 20;
+        int total = all.size();
+        int totalPages = safeSize > 0 ? (int) Math.ceil((double) total / safeSize) : 1;
+        int from = Math.min(page * safeSize, total);
+        int to = Math.min(from + safeSize, total);
+        List<BlockDto> content = all.subList(from, to);
+        return new PageResponse<>(content, total, totalPages, page, safeSize);
     }
 
     /**
@@ -92,43 +141,7 @@ public class BlockQueryService {
                 .map(Block::getTransactions)
                 .orElse(List.of())
                 .stream()
-                .map(tx -> toTransactionDto(tx, blockHash))
+                .map(tx -> transactionMapper.toDto(tx, blockHash))
                 .toList();
-    }
-
-    private BlockDto toBlockDto(Block block) {
-        String blockHash = block.getCurrentHash();
-        List<TransactionDto> txDtos = block.getTransactions() != null
-                ? block.getTransactions().stream()
-                    .map(tx -> toTransactionDto(tx, blockHash))
-                    .toList()
-                : List.of();
-        return BlockDto.builder()
-                .hash(block.getCurrentHash())
-                .previousHash(block.getPreviousHash())
-                .height(block.getHeight())
-                .merkleRoot(block.getMerkleRoot())
-                .validatorAddress(block.getValidatorAddress())
-                .validatorSignature(block.getValidatorSignature())
-                .transactionCount(block.getTransactions() != null ? block.getTransactions().size() : 0)
-                .status(block.getStatus())
-                .timestamp(block.getTimestamp())
-                .transactions(txDtos)
-                .build();
-    }
-
-    private TransactionDto toTransactionDto(Transaction tx, String blockHash) {
-        return TransactionDto.builder()
-                .id(tx.getId())
-                .senderId(tx.getSenderId())
-                .transactionType(tx.getTransactionType())
-                .status(tx.getStatus())
-                .blockHash(blockHash)
-                .payloadHash(tx.getPayloadHash())
-                .contentType(tx.getContentType())
-                .contentSize(tx.getPayload() != null ? (long) tx.getPayload().getBytes(java.nio.charset.StandardCharsets.UTF_8).length : null)
-                .timestamp(tx.getTimestamp())
-                .payload(tx.getPayload())
-                .build();
     }
 }

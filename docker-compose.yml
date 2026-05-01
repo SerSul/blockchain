@@ -1,21 +1,92 @@
-# PostgreSQL под настройки из src/main/resources/application.yml
 services:
-  postgres:
+  postgres-node1:
     image: postgres:16-alpine
-    container_name: blockchain-postgres
+    container_name: blockchain-postgres-node1
     environment:
-      POSTGRES_DB: blockchain_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "123"
+      POSTGRES_DB: ${NODE1_DB_NAME}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+      - "${NODE1_DB_HOST_PORT}:5432"
     volumes:
-      - blockchain_pg_data:/var/lib/postgresql/data
+      - pg_node1_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d blockchain_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${NODE1_DB_NAME}"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 20
+
+  postgres-node2:
+    image: postgres:16-alpine
+    container_name: blockchain-postgres-node2
+    environment:
+      POSTGRES_DB: ${NODE2_DB_NAME}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${NODE2_DB_HOST_PORT}:5432"
+    volumes:
+      - pg_node2_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${NODE2_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  node1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: blockchain-node1
+    depends_on:
+      postgres-node1:
+        condition: service_healthy
+      postgres-node2:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: ${NODE1_APP_PORT}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-node1:5432/${NODE1_DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      LEVELDB_PATH: ${NODE1_LEVELDB_PATH}
+      BLOCKCHAIN_BOOTSTRAP_ADMIN_PUBLIC_KEY: ${BLOCKCHAIN_BOOTSTRAP_ADMIN_PUBLIC_KEY}
+      BLOCKCHAIN_BOOTSTRAP_PEERS_0: http://node2:${NODE2_APP_PORT}
+      BLOCKCHAIN_SYNC_INTERVAL_MS: ${BLOCKCHAIN_SYNC_INTERVAL_MS}
+      BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED: ${BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED}
+      BLOCKCHAIN_BOOTSTRAP_SYNC_BATCH_SIZE: ${BLOCKCHAIN_BOOTSTRAP_SYNC_BATCH_SIZE}
+    ports:
+      - "${NODE1_APP_PORT}:${NODE1_APP_PORT}"
+    volumes:
+      - leveldb_node1_data:/data/leveldb
+
+  node2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: blockchain-node2
+    depends_on:
+      postgres-node1:
+        condition: service_healthy
+      postgres-node2:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: ${NODE2_APP_PORT}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-node2:5432/${NODE2_DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      LEVELDB_PATH: ${NODE2_LEVELDB_PATH}
+      BLOCKCHAIN_BOOTSTRAP_ADMIN_PUBLIC_KEY: ${BLOCKCHAIN_BOOTSTRAP_ADMIN_PUBLIC_KEY}
+      BLOCKCHAIN_BOOTSTRAP_PEERS_0: http://node1:${NODE1_APP_PORT}
+      BLOCKCHAIN_SYNC_INTERVAL_MS: ${BLOCKCHAIN_SYNC_INTERVAL_MS}
+      BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED: ${BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED}
+      BLOCKCHAIN_BOOTSTRAP_SYNC_BATCH_SIZE: ${BLOCKCHAIN_BOOTSTRAP_SYNC_BATCH_SIZE}
+    ports:
+      - "${NODE2_APP_PORT}:${NODE2_APP_PORT}"
+    volumes:
+      - leveldb_node2_data:/data/leveldb
 
 volumes:
-  blockchain_pg_data:
+  pg_node1_data:
+  pg_node2_data:
+  leveldb_node1_data:
+  leveldb_node2_data:

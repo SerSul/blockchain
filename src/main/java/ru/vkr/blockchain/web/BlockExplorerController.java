@@ -58,6 +58,17 @@ public class BlockExplorerController {
         return "explorer/pending-transactions";
     }
 
+    @GetMapping("/fork-candidates")
+    public String listForkCandidates(
+            Model model,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        PageResponse<BlockDto> result = blockQueryService.getForkCandidatesPage(page, size);
+        model.addAttribute("page", result);
+        model.addAttribute("size", size);
+        return "explorer/fork-candidates";
+    }
+
     @GetMapping("/blocks/{hash}")
     public String blockDetail(@PathVariable String hash, Model model) {
         Optional<BlockDto> block = blockQueryService.getBlockByHash(hash);

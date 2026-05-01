@@ -61,6 +61,13 @@ public class TransactionController {
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
+    @GetMapping("/pending")
+    public ResponseEntity<ApiResponse<PageResponse<TransactionDto>>> getPendingTransactions(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "200") int size) {
+        return ResponseEntity.ok(ApiResponse.success(transactionQueryService.getPendingTransactionsPage(page, size)));
+    }
+
     /**
      * Одна транзакция по ID (из подтверждённых в блоках или из pending).
      */

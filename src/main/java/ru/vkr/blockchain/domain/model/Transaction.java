@@ -13,6 +13,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Transaction implements Serializable {
 
     @Serial

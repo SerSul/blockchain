@@ -1,32 +1,41 @@
 spring:
   application:
-    name: blockchain
+    name: ${SPRING_APPLICATION_NAME:blockchain}
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/blockchain_db
-    username: postgres
-    password: 123
-    driver-class-name: org.postgresql.Driver
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/blockchain_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER_CLASS_NAME:org.postgresql.Driver}
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 5
-      connection-timeout: 30000
+      maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:10}
+      minimum-idle: ${SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE:5}
+      connection-timeout: ${SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT:30000}
 
   jpa:
     hibernate:
-      ddl-auto: validate
-    show-sql: true
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
+    show-sql: ${SPRING_JPA_SHOW_SQL:true}
     properties:
       hibernate:
-        format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: ${SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL:true}
+        dialect: ${SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
 
   liquibase:
-    change-log: classpath:db/changelog/db.changelog-master.yaml
-    enabled: true
+    change-log: ${SPRING_LIQUIBASE_CHANGE_LOG:classpath:db/changelog/db.changelog-master.yaml}
+    enabled: ${SPRING_LIQUIBASE_ENABLED:true}
 
 
 leveldb:
-  path: ./data/leveldb
-  create-if-missing: true
-  cache-size: 104857600
+  path: ${LEVELDB_PATH:./data/leveldb}
+  create-if-missing: ${LEVELDB_CREATE_IF_MISSING:true}
+  cache-size: ${LEVELDB_CACHE_SIZE:104857600}
+
+blockchain:
+  bootstrap:
+    admin-public-key: ${BLOCKCHAIN_BOOTSTRAP_ADMIN_PUBLIC_KEY:${ADMIN_PUBLIC_KEY:}}
+    peers: []
+    sync-enabled: ${BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED:true}
+    sync-batch-size: ${BLOCKCHAIN_BOOTSTRAP_SYNC_BATCH_SIZE:50}
+  sync:
+    interval-ms: ${BLOCKCHAIN_SYNC_INTERVAL_MS:15000}

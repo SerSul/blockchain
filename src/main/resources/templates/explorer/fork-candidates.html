@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head th:replace="~{fragments/explorer :: head ('Fork candidates')}">
+    <title>Fork candidates</title>
+</head>
+<body>
+<div th:replace="~{fragments/explorer :: nav}"></div>
+<main>
+    <h1>Fork candidates</h1>
+    <p class="muted" style="margin: -0.5rem 0 1rem;">
+        Блоки, которые были отклонены как продолжение текущего tip (обычно из-за несовпадения previousHash).
+    </p>
+
+    <form class="card filters" method="get" th:action="@{/explorer/fork-candidates}">
+        <label>На странице
+            <input type="number" name="size" th:value="${size}" min="5" max="200"/>
+        </label>
+        <input type="hidden" name="page" value="0"/>
+        <button type="submit" class="btn">Применить</button>
+    </form>
+
+    <div class="card">
+        <strong>Как обрабатывать</strong>
+        <p class="muted" style="margin: 0.35rem 0 0;">
+            Текущая стратегия: узел сохраняет такие блоки как кандидатов и продолжает canonical chain.
+            Далее узел подтягивает недостающие блоки через sync и только после этого может перейти на более длинную валидную ветку.
+            Полный reorg/rollback будет отдельным этапом.
+        </p>
+    </div>
+
+    <div class="card" th:if="${page != null && !page.content.isEmpty()}">
+        <table>
+            <thead>
+            <tr>
+                <th>Высота</th>
+                <th>Хеш</th>
+                <th>Previous</th>
+                <th>Валидатор</th>
+                <th>Tx</th>
+                <th>Время</th>
+                <th>Статус</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="b : ${page.content}">
+                <td th:text="${b.height}">0</td>
+                <td class="mono" th:text="${b.hash != null ? (#strings.length(b.hash) > 16 ? #strings.substring(b.hash,0,16) + '…' : b.hash) : '—'}">—</td>
+                <td class="mono muted" th:text="${b.previousHash != null ? (#strings.length(b.previousHash) > 14 ? #strings.substring(b.previousHash,0,14) + '…' : b.previousHash) : '—'}">—</td>
+                <td class="mono muted" th:text="${b.validatorAddress != null ? (#strings.length(b.validatorAddress) > 16 ? #strings.substring(b.validatorAddress,0,16) + '…' : b.validatorAddress) : '—'}">—</td>
+                <td th:text="${b.transactionCount != null ? b.transactionCount : 0}">0</td>
+                <td th:text="${b.timestamp != null ? #temporals.format(b.timestamp, 'yyyy-MM-dd HH:mm:ss') : '—'}">—</td>
+                <td><span class="badge" th:text="${b.status != null ? b.status : 'UNKNOWN'}">UNKNOWN</span></td>
+            </tr>
+            </tbody>
+        </table>
+
+        <div class="pagination" th:if="${page.totalPages > 1}">
+            <a th:if="${page.number > 0}"
+               th:href="@{/explorer/fork-candidates(page=${page.number - 1}, size=${size})}">← Назад</a>
+            <span th:if="${page.number == 0}" class="disabled">← Назад</span>
+            <span class="muted">Страница <span th:text="${page.number + 1}">1</span> из <span th:text="${page.totalPages}">1</span>
+                (<span th:text="${page.totalElements}">0</span> шт.)</span>
+            <a th:if="${!page.last}"
+               th:href="@{/explorer/fork-candidates(page=${page.number + 1}, size=${size})}">Вперёд →</a>
+            <span th:if="${page.last}" class="disabled">Вперёд →</span>
+        </div>
+    </div>
+
+    <div class="card empty" th:if="${page == null || page.content.isEmpty()}">
+        Пока fork candidates нет.
+    </div>
+</main>
+</body>
+</html>

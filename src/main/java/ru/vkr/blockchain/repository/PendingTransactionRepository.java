@@ -41,6 +41,10 @@ public class PendingTransactionRepository {
         log.debug("Deleted pending transaction: {}", transactionId);
     }
 
+    public boolean existsById(String transactionId) {
+        return levelDBService.exists(key(transactionId));
+    }
+
     public void deleteAll(Collection<String> transactionIds) {
         if (transactionIds == null || transactionIds.isEmpty()) {
             return;

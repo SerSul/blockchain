@@ -32,4 +32,5 @@ public class TransactionDto {
     private Long contentSize;
     private LocalDateTime timestamp;
     private String payload;
+    private String signature;
 }

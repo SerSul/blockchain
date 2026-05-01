@@ -5,4 +5,6 @@ public enum TransactionType {
     UPDATE_ACCOUNT_ROLES,     // Изменение ролей аккаунта (админ → валидатор и т.д.)
     DEACTIVATE_ACCOUNT,       // Деактивация аккаунта
     STORE_DATA,               // Сохранение данных
+    ADD_PEER,                 // Добавление peer-ноды в список
+    REMOVE_PEER               // Удаление peer-ноды из списка
 }
