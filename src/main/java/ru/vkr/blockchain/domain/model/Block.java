@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import ru.vkr.blockchain.domain.model.enums.BlockStatus;
 
 import java.io.*;
@@ -16,6 +17,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Slf4j
 public class Block implements Serializable {
 
     @Serial
@@ -67,12 +69,16 @@ public class Block implements Serializable {
     public boolean validate() {
         String calculatedHash = calculateHash();
         if (!calculatedHash.equals(currentHash)) {
+            log.warn("Block validation failed: hash mismatch, expected={}, actual={}, height={}",
+                    currentHash, calculatedHash, height);
             return false;
         }
 
         if (transactions != null) {
             for (Transaction tx : transactions) {
                 if (!tx.isValid()) {
+                    log.warn("Block validation failed: invalid transaction id={}, height={}",
+                            tx != null ? tx.getId() : null, height);
                     return false;
                 }
             }

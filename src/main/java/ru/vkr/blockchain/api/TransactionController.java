@@ -32,9 +32,11 @@ public class TransactionController {
     @PostMapping("/store")
     public ResponseEntity<?> storeData(@RequestBody @Valid CreateTransactionRequest request) {
         if (request.getTransactionType() != TransactionType.STORE_DATA) {
+            log.warn("API storeData rejected: invalid txType={}", request.getTransactionType());
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("transaction_type must be STORE_DATA"));
         }
+        log.info("API storeData accepted");
         blockChainService.storeData(request);
         return ResponseEntity.ok(ApiResponse.success());
     }
@@ -54,6 +56,8 @@ public class TransactionController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "timestamp") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {
+        log.info("API getTransactions status={}, blockHash={}, senderId={}, txType={}, page={}, size={}",
+                status, blockHash, senderId, transactionType, page, size);
         TransactionStatus statusEnum = parseStatus(status);
         TransactionType typeEnum = parseTransactionType(transactionType);
         PageResponse<TransactionDto> result = transactionQueryService.getTransactions(
@@ -65,6 +69,7 @@ public class TransactionController {
     public ResponseEntity<ApiResponse<PageResponse<TransactionDto>>> getPendingTransactions(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "200") int size) {
+        log.info("API getPendingTransactions page={}, size={}", page, size);
         return ResponseEntity.ok(ApiResponse.success(transactionQueryService.getPendingTransactionsPage(page, size)));
     }
 
@@ -73,6 +78,7 @@ public class TransactionController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<TransactionDto>> getTransactionById(@PathVariable String id) {
+        log.info("API getTransactionById id={}", id);
         return transactionQueryService.getTransactionById(id)
                 .map(dto -> ResponseEntity.ok(ApiResponse.success(dto)))
                 .orElse(ResponseEntity.notFound().build());

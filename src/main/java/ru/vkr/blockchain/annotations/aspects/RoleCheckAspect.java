@@ -9,8 +9,10 @@ import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.stereotype.Component;
 import ru.vkr.blockchain.annotations.RequireRole;
 import ru.vkr.blockchain.dto.CreateTransactionRequest;
+import ru.vkr.blockchain.domain.entity.AuditLog;
 import ru.vkr.blockchain.domain.model.enums.AccountRole;
 import ru.vkr.blockchain.repository.AccountRepository;
+import ru.vkr.blockchain.repository.entity.AuditLogRepository;
 import ru.vkr.blockchain.service.CryptoService;
 import ru.vkr.blockchain.service.domain.BlockService;
 
@@ -24,9 +26,11 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class RoleCheckAspect {
+    private static final String SYSTEM_ACTOR = "system";
     private final AccountRepository accountRepository;
     private final CryptoService cryptoService;
     private final BlockService blockService;
+    private final AuditLogRepository auditLogRepository;
 
     @Before("@annotation(ru.vkr.blockchain.annotations.RequireRole)")
     public void checkRole(JoinPoint joinPoint) {
@@ -48,13 +52,21 @@ public class RoleCheckAspect {
         String creatorPublicKey = extractCreatorPublicKey(args);
 
         if (creatorPublicKey == null) {
+            log.warn("Role check failed: creator public key not found, method={}", method.getName());
+            auditLogRepository.save(new AuditLog("ACCESS", method.getName(), "ROLE_CHECK_DENIED", SYSTEM_ACTOR,
+                    "creator public key not found"));
             throw new SecurityException("Creator public key not found in request");
         }
 
         String creatorAddress = cryptoService.generateAddress(creatorPublicKey);
         var creator = accountRepository.findByAddress(creatorAddress)
-                .orElseThrow(() -> new SecurityException(
-                        "Account not found: " + creatorAddress));
+                .orElse(null);
+        if (creator == null) {
+            log.warn("Role check failed: account not found, method={}, creator={}", method.getName(), creatorAddress);
+            auditLogRepository.save(new AuditLog("ACCESS", method.getName(), "ROLE_CHECK_DENIED", creatorAddress,
+                    "account not found"));
+            throw new SecurityException("Account not found: " + creatorAddress);
+        }
 
         Set<AccountRole> userRoles = Set.copyOf(creator.getAccountRoles());
         Set<AccountRole> requiredRoles = Arrays.stream(requireRole.value())
@@ -68,6 +80,10 @@ public class RoleCheckAspect {
         }
 
         if (!hasAccess) {
+            log.warn("Role check denied: method={}, creator={}, required={}, user={}",
+                    method.getName(), creatorAddress, requiredRoles, userRoles);
+            auditLogRepository.save(new AuditLog("ACCESS", method.getName(), "ROLE_CHECK_DENIED", creatorAddress,
+                    "required=" + requiredRoles + ", user=" + userRoles));
             throw new SecurityException(
                     String.format("Access denied. Required roles: %s, User roles: %s",
                             requiredRoles, userRoles));

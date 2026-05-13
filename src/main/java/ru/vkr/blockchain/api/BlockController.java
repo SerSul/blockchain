@@ -35,6 +35,7 @@ public class BlockController {
 
     @GetMapping("/next-validator")
     public ResponseEntity<ApiResponse<Account>> getNextValidator() {
+        log.info("API getNextValidator");
         return validatorSelectionService.getNextValidator()
                 .map(validator -> ResponseEntity.ok(ApiResponse.success(validator)))
                 .orElse(ResponseEntity.ok(ApiResponse.success(null)));
@@ -47,12 +48,15 @@ public class BlockController {
     @PostMapping("/prepare")
     public ResponseEntity<ApiResponse<PrepareBlockResponse>> prepareBlock(@RequestBody(required = false) PrepareBlockRequest request) {
         List<String> transactionIds = request != null && request.getTransactionIds() != null ? request.getTransactionIds() : List.of();
+        log.info("API prepareBlock transactionIdsCount={}", transactionIds.size());
         PrepareBlockResponse response = blockCreationService.prepareBlock(transactionIds);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping
     public ResponseEntity<?> createBlock(@RequestBody @Valid CreateBlockRequest request) {
+        log.info("API createBlock transactionIdsCount={}",
+                request.getTransactionIds() != null ? request.getTransactionIds().size() : 0);
         blockCreationService.createBlock(request);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
@@ -70,6 +74,8 @@ public class BlockController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "height") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {
+        log.info("API getBlocks heightFrom={}, heightTo={}, validator={}, page={}, size={}",
+                heightFrom, heightTo, validatorAddress, page, size);
         PageResponse<BlockMetadata> result = blockQueryService.getBlocks(heightFrom, heightTo, validatorAddress, page, size, sortBy, sortDir);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
@@ -79,6 +85,7 @@ public class BlockController {
      */
     @GetMapping("/{hash}")
     public ResponseEntity<ApiResponse<BlockDto>> getBlockByHash(@PathVariable String hash) {
+        log.info("API getBlockByHash hash={}", hash);
         return blockQueryService.getBlockByHash(hash)
                 .map(dto -> ResponseEntity.ok(ApiResponse.success(dto)))
                 .orElse(ResponseEntity.notFound().build());
@@ -89,6 +96,7 @@ public class BlockController {
      */
     @GetMapping("/{hash}/transactions")
     public ResponseEntity<ApiResponse<List<TransactionDto>>> getBlockTransactions(@PathVariable String hash) {
+        log.info("API getBlockTransactions hash={}", hash);
         List<TransactionDto> transactions = blockQueryService.getBlockTransactions(hash);
         return ResponseEntity.ok(ApiResponse.success(transactions));
     }
@@ -97,16 +105,19 @@ public class BlockController {
     public ResponseEntity<ApiResponse<List<BlockDto>>> getBlocksRange(
             @RequestParam int fromHeight,
             @RequestParam(defaultValue = "50") int limit) {
+        log.info("API getBlocksRange fromHeight={}, limit={}", fromHeight, limit);
         return ResponseEntity.ok(ApiResponse.success(blockQueryService.getBlocksRange(fromHeight, limit)));
     }
 
     @PostMapping("/sync")
     public ResponseEntity<ApiResponse<String>> importBlockFromPeer(@RequestBody @Valid BlockDto blockDto) {
+        log.info("API importBlockFromPeer hash={}, height={}", blockDto.getHash(), blockDto.getHeight());
         Block block = blockMapper.toDomain(blockDto);
         if (block.getStatus() == null) {
             block.setStatus(BlockStatus.CONFIRMED);
         }
         BlockCreationService.ImportResult result = blockCreationService.importExternalBlock(block, "peer-push");
+        log.info("API importBlockFromPeer result={} hash={}, height={}", result, blockDto.getHash(), blockDto.getHeight());
         return ResponseEntity.ok(ApiResponse.success(result.name()));
     }
 }

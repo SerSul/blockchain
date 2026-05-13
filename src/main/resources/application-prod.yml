@@ -8,6 +8,7 @@ spring:
 logging:
   level:
     root: WARN
+    ru.vkr.blockchain: INFO
     org.hibernate: ERROR
     org.hibernate.SQL: OFF
     org.hibernate.orm.jdbc.bind: OFF

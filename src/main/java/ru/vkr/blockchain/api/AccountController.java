@@ -24,6 +24,7 @@ public class AccountController {
 
     @PostMapping
     public ResponseEntity<?> createAccount(@RequestBody @Valid CreateTransactionRequest request) {
+        log.info("API createAccount requested, txType={}", request.getTransactionType());
         accountService.createAccount(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success());
@@ -32,9 +33,11 @@ public class AccountController {
     @PatchMapping("/roles")
     public ResponseEntity<?> updateAccountRoles(@RequestBody @Valid CreateTransactionRequest request) {
         if (request.getTransactionType() != TransactionType.UPDATE_ACCOUNT_ROLES) {
+            log.warn("API updateAccountRoles rejected: invalid txType={}", request.getTransactionType());
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("transaction_type must be UPDATE_ACCOUNT_ROLES"));
         }
+        log.info("API updateAccountRoles accepted");
         accountService.updateAccountRoles(request);
         return ResponseEntity.ok(ApiResponse.success());
     }
@@ -42,9 +45,11 @@ public class AccountController {
     @PostMapping("/deactivate")
     public ResponseEntity<?> deactivateAccount(@RequestBody @Valid CreateTransactionRequest request) {
         if (request.getTransactionType() != TransactionType.DEACTIVATE_ACCOUNT) {
+            log.warn("API deactivateAccount rejected: invalid txType={}", request.getTransactionType());
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("transaction_type must be DEACTIVATE_ACCOUNT"));
         }
+        log.info("API deactivateAccount accepted");
         accountService.deactivateAccount(request);
         return ResponseEntity.ok(ApiResponse.success());
     }

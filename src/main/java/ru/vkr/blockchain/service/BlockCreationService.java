@@ -34,6 +34,7 @@ public class BlockCreationService {
     private static final String GENESIS_PREVIOUS_HASH = "0000000000000000000000000000000000000000000000000000000000000000";
     private static final LocalDateTime GENESIS_TIMESTAMP = LocalDateTime.of(2026, 1, 1, 0, 0, 0);
     private static final String ENTITY_BLOCK = "BLOCK";
+    private static final String SYSTEM_ACTOR = "system";
 
     private final BlockService blockService;
     private final CryptoService cryptoService;
@@ -168,21 +169,31 @@ public class BlockCreationService {
 
     public ImportResult importExternalBlock(Block block, String sourcePeer) {
         if (block == null || block.getCurrentHash() == null || block.getCurrentHash().isBlank()) {
+            log.error("Rejected external block as INVALID: empty block/hash, source={}", sourcePeer);
+            auditImportEvent(block, "IMPORT_INVALID", sourcePeer, "empty block/hash");
             return ImportResult.INVALID;
         }
         if (!block.validate()) {
+            log.error("Rejected external block as INVALID: validation failed, hash={}, height={}, source={}",
+                    block.getCurrentHash(), block.getHeight(), sourcePeer);
+            auditImportEvent(block, "IMPORT_INVALID", sourcePeer, "block.validate() failed");
             return ImportResult.INVALID;
         }
         if (blockService.findByHash(block.getCurrentHash()).isPresent()) {
+            log.info("Ignored external block as ALREADY_EXISTS: hash={}, height={}, source={}",
+                    block.getCurrentHash(), block.getHeight(), sourcePeer);
+            auditImportEvent(block, "IMPORT_ALREADY_EXISTS", sourcePeer, "block already present");
             return ImportResult.ALREADY_EXISTS;
         }
         Optional<Block> latestOpt = blockService.findLatest();
         if (latestOpt.isEmpty()) {
             if (block.getHeight() != 0 || !GENESIS_PREVIOUS_HASH.equals(block.getPreviousHash())) {
                 storeForkCandidate(block, "non-genesis on empty local chain");
+                auditImportEvent(block, "IMPORT_FORK_CANDIDATE", sourcePeer, "non-genesis on empty local chain");
                 return ImportResult.FORK_CANDIDATE;
             }
             persistCanonicalBlock(block, true, "SYNC_IMPORT");
+            auditImportEvent(block, "IMPORT_ACCEPTED", sourcePeer, "imported as genesis on empty chain");
             return ImportResult.IMPORTED;
         }
 
@@ -191,10 +202,12 @@ public class BlockCreationService {
                 && block.getHeight() == latest.getHeight() + 1;
         if (!extendsTip) {
             storeForkCandidate(block, "previousHash mismatch, source=" + sourcePeer);
+            auditImportEvent(block, "IMPORT_FORK_CANDIDATE", sourcePeer, "previousHash mismatch");
             return ImportResult.FORK_CANDIDATE;
         }
 
         persistCanonicalBlock(block, true, "SYNC_IMPORT");
+        auditImportEvent(block, "IMPORT_ACCEPTED", sourcePeer, "extends tip and imported");
         return ImportResult.IMPORTED;
     }
 
@@ -224,6 +237,13 @@ public class BlockCreationService {
         } catch (Exception e) {
             log.error("Failed to store fork candidate {}", block.getCurrentHash(), e);
         }
+    }
+
+    private void auditImportEvent(Block block, String action, String sourcePeer, String details) {
+        String blockHash = block != null && block.getCurrentHash() != null ? block.getCurrentHash() : "unknown";
+        String actor = block != null && block.getValidatorAddress() != null ? block.getValidatorAddress() : SYSTEM_ACTOR;
+        String info = "source=" + sourcePeer + ", " + details;
+        auditLogRepository.save(new AuditLog(ENTITY_BLOCK, blockHash, action, actor, info));
     }
 
     public enum ImportResult {
