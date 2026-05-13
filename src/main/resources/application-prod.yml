@@ -1,0 +1,16 @@
+spring:
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+logging:
+  level:
+    root: WARN
+    org.hibernate: ERROR
+    org.hibernate.SQL: OFF
+    org.hibernate.orm.jdbc.bind: OFF
+    org.hibernate.type.descriptor.sql: OFF
+    org.springframework.orm.jpa: ERROR
+    org.springframework.transaction: ERROR

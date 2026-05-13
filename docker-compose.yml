@@ -45,6 +45,7 @@ services:
         condition: service_healthy
     environment:
       SERVER_PORT: ${NODE1_APP_PORT}
+      SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-node1:5432/${NODE1_DB_NAME}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
@@ -71,6 +72,7 @@ services:
         condition: service_healthy
     environment:
       SERVER_PORT: ${NODE2_APP_PORT}
+      SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-node2:5432/${NODE2_DB_NAME}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
