@@ -1,7 +1,6 @@
 services:
   minio:
     image: minio/minio:latest
-    container_name: blockchain-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
@@ -19,7 +18,6 @@ services:
 
   postgres:
     image: postgres:16-alpine
-    container_name: blockchain-postgres
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -38,7 +36,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: blockchain-node
     depends_on:
       minio:
         condition: service_healthy
@@ -51,8 +48,9 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       LEVELDB_PATH: ${LEVELDB_PATH}
-      BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_0: ${BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_0}
+      BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_0: ${BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_0:-}
       BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_1: ${BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_1:-}
+      BLOCKCHAIN_BOOTSTRAP_PEERS_0: ${BLOCKCHAIN_BOOTSTRAP_PEERS_0:-}
       BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED: ${BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED:-false}
       BLOCKCHAIN_SYNC_INTERVAL_MS: ${BLOCKCHAIN_SYNC_INTERVAL_MS:-15000}
       BLOCKCHAIN_BOOTSTRAP_SYNC_BATCH_SIZE: ${BLOCKCHAIN_BOOTSTRAP_SYNC_BATCH_SIZE:-50}

@@ -3,6 +3,8 @@ package ru.vkr.blockchain.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.vkr.blockchain.domain.model.Account;
+import ru.vkr.blockchain.dto.AccountSyncDto;
+import ru.vkr.blockchain.dto.NetworkJoinSnapshotDto;
 import ru.vkr.blockchain.dto.NetworkStatusDto;
 import ru.vkr.blockchain.dto.NetworkValidatorDto;
 import ru.vkr.blockchain.dto.explorer.AccountExplorerRow;
@@ -56,6 +58,20 @@ public class NetworkOverviewService {
                 accountRepository.getBootstrapValidators().size(),
                 nextValidator,
                 nextHeight
+        );
+    }
+
+    public NetworkJoinSnapshotDto buildJoinSnapshot() {
+        return new NetworkJoinSnapshotDto(
+                accountRepository.getValidators(),
+                accountRepository.getBootstrapValidators(),
+                accountRepository.findAll().stream()
+                        .map(a -> new AccountSyncDto(
+                                a.getAddress(),
+                                a.getPublicKey(),
+                                a.getAccountRoles(),
+                                a.isActive()))
+                        .toList()
         );
     }
 

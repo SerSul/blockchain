@@ -64,6 +64,38 @@ public class AccountRepository {
         return getBootstrapValidators().contains(address);
     }
 
+    public boolean hasValidatorsList() {
+        return levelDBService.get(VALIDATORS_LIST_KEY) != null;
+    }
+
+    /**
+     * Импорт аккаунтов и списков валидаторов с другой ноды (только если локальный список ещё пуст).
+     */
+    public void importJoinSnapshot(List<Account> accounts, List<String> validatorAddresses,
+                                 List<String> bootstrapAddresses) throws IOException {
+        if (hasValidatorsList()) {
+            return;
+        }
+        if (accounts != null) {
+            for (Account account : accounts) {
+                if (account.getAddress() == null || exists(account.getAddress())) {
+                    continue;
+                }
+                saveWithoutValidatorIndexUpdate(account);
+            }
+        }
+        if (validatorAddresses != null && !validatorAddresses.isEmpty()) {
+            persistValidatorsList(validatorAddresses);
+            List<String> bootstrap = bootstrapAddresses != null && !bootstrapAddresses.isEmpty()
+                    ? bootstrapAddresses
+                    : validatorAddresses;
+            if (levelDBService.get(BOOTSTRAP_VALIDATORS_KEY) == null) {
+                levelDBService.put(BOOTSTRAP_VALIDATORS_KEY, String.join(",", bootstrap).getBytes());
+            }
+            log.info("Imported validator lists from peer: validators={}, bootstrap={}", validatorAddresses, bootstrap);
+        }
+    }
+
     public void addValidator(String address) throws IOException {
         List<String> validators = new ArrayList<>(getValidators());
         if (!validators.contains(address)) {
