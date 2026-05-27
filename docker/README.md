@@ -29,6 +29,9 @@ docker compose --env-file .env.node1 up -d --build
 
 Дождитесь старта (genesis создаётся при первом запуске с пустым LevelDB).
 
+У **ноды 1** в `.env.node1` уже указан пир на ноду 2 (`http://host.docker.internal:8081`) и `SYNC_ENABLED=true`.  
+Genesis и ключи валидаторов нужны только здесь; пир на вторую ноду нужен, чтобы **подтягивать её блоки и pending-транзакции**, когда node2 появится в сети.
+
 ## Нода 2 (порт 8081, без ключей валидаторов)
 
 Нода 2 **не обязана** задавать `BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_*`. При включённом sync она:
@@ -49,6 +52,15 @@ docker compose --env-file .env.node2 up -d --build
 - http://localhost:8081/explorer/validators
 
 **Важно:** сначала поднимите ноду 1, затем ноду 2. У ноды 2 свои Postgres, MinIO и LevelDB (отдельные volumes за счёт `COMPOSE_PROJECT_NAME=bc-node2`).
+
+### Связь пиров (обе стороны)
+
+| Нода | Порт | `BLOCKCHAIN_BOOTSTRAP_PEERS_0` |
+|------|------|--------------------------------|
+| 1 | 8080 | `http://host.docker.internal:8081` |
+| 2 | 8081 | `http://host.docker.internal:8080` |
+
+Обе ноды с `BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED=true`. Нода 1 может стартовать одна: пир в списке появится сразу, синхронизация с 8081 заработает после `docker compose ... .env.node2 up`.
 
 ## Остановка
 
@@ -81,8 +93,8 @@ docker compose --env-file .env up -d --build
 | `DB_HOST_PORT` | 5433 | 5434 |
 | `MINIO_API_PORT` | 9000 | 9002 |
 | `BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_*` | обязательны для genesis | можно пусто |
-| `BLOCKCHAIN_BOOTSTRAP_PEERS_0` | пусто | URL ноды 1 |
-| `BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED` | false | true |
+| `BLOCKCHAIN_BOOTSTRAP_PEERS_0` | URL ноды 2 (`:8081`) | URL ноды 1 (`:8080`) |
+| `BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED` | true | true |
 
 ## Linux
 

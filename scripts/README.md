@@ -6,6 +6,28 @@
 pip install -r scripts/requirements.txt
 ```
 
+## Интерактивное CLI (все функции API)
+
+```bash
+python scripts/menu_cli.py
+```
+
+Покрывает: сеть, блоки, транзакции, аккаунты, STORE_DATA / STORE_FILE, mine block, пиры, сценарий «аккаунт → валидатор».
+
+Настройки сохраняются в `scripts/.cli_config.json` (создаётся автоматически):
+
+- `base_url` — по умолчанию `http://localhost:8080` (нода 2: `http://localhost:8081`)
+- `validator_pems` — пути к PEM валидаторов
+- `user_pem` — ключ обычного пользователя для STORE_*
+
+Для ноды 2 в меню: пункт **u** → `http://localhost:8081`.
+
+Быстрый smoke-тест без меню:
+
+```bash
+python scripts/run_all_tests.py --base-url http://localhost:8080
+```
+
 ## Ключи валидаторов (bootstrap)
 
 ```bash
