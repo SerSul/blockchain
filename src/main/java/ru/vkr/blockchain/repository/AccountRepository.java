@@ -3,7 +3,6 @@ package ru.vkr.blockchain.repository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
-import ru.vkr.blockchain.domain.model.enums.AccountRole;
 import ru.vkr.blockchain.domain.model.Account;
 import ru.vkr.blockchain.service.LevelDBService;
 
@@ -18,49 +17,97 @@ public class AccountRepository {
     private final LevelDBService levelDBService;
     private static final String ACCOUNT_PREFIX = "account:";
     private static final String VALIDATORS_LIST_KEY = "validators_list";
+    private static final String BOOTSTRAP_VALIDATORS_KEY = "bootstrap_validators";
 
     /**
-     * Сохраняет аккаунт в LevelDB
+     * Сохраняет аккаунт в LevelDB.
      */
     public void save(Account account) throws IOException {
-        Optional<Account> existing = findByAddress(account.getAddress());
-        boolean hadValidator = existing.map(a -> a.getAccountRoles().contains(AccountRole.VALIDATOR)).orElse(false);
-        boolean hasValidator = account.getAccountRoles().contains(AccountRole.VALIDATOR);
+        saveWithoutValidatorIndexUpdate(account);
+    }
 
+    public void saveWithoutValidatorIndexUpdate(Account account) throws IOException {
         String key = ACCOUNT_PREFIX + account.getAddress();
         levelDBService.put(key, account.toBytes());
-
-        if (hasValidator) {
-            addToValidatorIndex(account.getAddress());
-        } else if (hadValidator) {
-            removeFromValidatorIndex(account.getAddress());
-        }
-
         log.debug("Account saved: {}", account.getAddress());
     }
 
-    /**
-     * Возвращает список адресов валидаторов (отсортирован для детерминированного round-robin)
-     */
-    public List<String> getValidators() {
-        byte[] validatorListBytes = levelDBService.get(VALIDATORS_LIST_KEY);
-        if (validatorListBytes == null) return List.of();
 
-        String validatorList = new String(validatorListBytes);
-        return Arrays.stream(validatorList.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .sorted()
-                .toList();
+    public void initializeValidatorsList(List<String> orderedAddresses) throws IOException {
+        if (orderedAddresses == null || orderedAddresses.isEmpty()) {
+            throw new IllegalArgumentException("Validator list must not be empty");
+        }
+        persistValidatorsList(orderedAddresses);
+        log.info("Validators list initialized: {}", orderedAddresses);
+    }
+
+    public void initializeBootstrapValidators(List<String> orderedAddresses) throws IOException {
+        if (orderedAddresses == null || orderedAddresses.isEmpty()) {
+            throw new IllegalArgumentException("Bootstrap validator list must not be empty");
+        }
+        levelDBService.put(BOOTSTRAP_VALIDATORS_KEY, String.join(",", orderedAddresses).getBytes());
+        log.info("Bootstrap validators recorded: {}", orderedAddresses);
     }
 
     /**
-     * Находит аккаунт по адресу
+     * Адреса валидаторов для round-robin (начальный список + добавленные через UPDATE_ACCOUNT_ROLES).
      */
+    public List<String> getValidators() {
+        return parseAddressList(levelDBService.get(VALIDATORS_LIST_KEY));
+    }
+
+    public List<String> getBootstrapValidators() {
+        return parseAddressList(levelDBService.get(BOOTSTRAP_VALIDATORS_KEY));
+    }
+
+    public boolean isBootstrapValidator(String address) {
+        return getBootstrapValidators().contains(address);
+    }
+
+    public void addValidator(String address) throws IOException {
+        List<String> validators = new ArrayList<>(getValidators());
+        if (!validators.contains(address)) {
+            validators.add(address);
+            persistValidatorsList(validators);
+            log.info("Validator added to round-robin list: {}", address);
+        }
+    }
+
+    public void removeValidator(String address) throws IOException {
+        if (isBootstrapValidator(address)) {
+            throw new IllegalStateException("Cannot remove bootstrap validator: " + address);
+        }
+        List<String> validators = new ArrayList<>(getValidators());
+        if (!validators.remove(address)) {
+            return;
+        }
+        if (validators.isEmpty()) {
+            throw new IllegalStateException("Cannot remove last validator from the network");
+        }
+        persistValidatorsList(validators);
+        log.info("Validator removed from round-robin list: {}", address);
+    }
+
+    private void persistValidatorsList(List<String> orderedAddresses) throws IOException {
+        levelDBService.put(VALIDATORS_LIST_KEY, String.join(",", orderedAddresses).getBytes());
+    }
+
+    private List<String> parseAddressList(byte[] raw) {
+        if (raw == null) {
+            return List.of();
+        }
+        return Arrays.stream(new String(raw).split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+    }
+
     public Optional<Account> findByAddress(String address) {
         try {
             byte[] data = levelDBService.get(ACCOUNT_PREFIX + address);
-            if (data == null) return Optional.empty();
+            if (data == null) {
+                return Optional.empty();
+            }
             return Optional.of(Account.fromBytes(data));
         } catch (Exception e) {
             log.error("Error loading account: {}", address, e);
@@ -68,25 +115,10 @@ public class AccountRepository {
         }
     }
 
-    /**
-     * Проверяет, существует ли аккаунт
-     */
     public boolean exists(String address) {
         return findByAddress(address).isPresent();
     }
 
-    /**
-     * Удаляет аккаунт
-     */
-    public void delete(String address) throws IOException {
-        levelDBService.delete(ACCOUNT_PREFIX + address);
-        removeFromValidatorIndex(address);
-        log.debug("Account deleted: {}", address);
-    }
-
-    /**
-     * Обновляет аккаунт (по сути то же самое, что save)
-     */
     public void update(Account account) throws IOException {
         save(account);
     }
@@ -100,49 +132,5 @@ public class AccountRepository {
                         throw new RuntimeException(e);
                     }
                 }).toList();
-    }
-
-    /**
-     * Добавляет адрес в индекс валидаторов
-     */
-    private void addToValidatorIndex(String address) {
-        try {
-            byte[] validatorListBytes = levelDBService.get(VALIDATORS_LIST_KEY);
-            Set<String> validators = new HashSet<>();
-
-            if (validatorListBytes != null) {
-                String validatorList = new String(validatorListBytes);
-                validators.addAll(Arrays.asList(validatorList.split(",")));
-            }
-
-            validators.add(address);
-            String updatedList = String.join(",", validators);
-            levelDBService.put(VALIDATORS_LIST_KEY, updatedList.getBytes());
-
-            log.debug("Added to validator index: {}", address);
-        } catch (Exception e) {
-            log.error("Error adding to validator index: {}", address, e);
-        }
-    }
-
-    /**
-     * Удаляет адрес из индекса валидаторов
-     */
-    private void removeFromValidatorIndex(String address) {
-        try {
-            byte[] validatorListBytes = levelDBService.get(VALIDATORS_LIST_KEY);
-            if (validatorListBytes == null) return;
-
-            String validatorList = new String(validatorListBytes);
-            Set<String> validators = new HashSet<>(Arrays.asList(validatorList.split(",")));
-            validators.remove(address);
-
-            String updatedList = String.join(",", validators);
-            levelDBService.put(VALIDATORS_LIST_KEY, updatedList.getBytes());
-
-            log.debug("Removed from validator index: {}", address);
-        } catch (Exception e) {
-            log.error("Error removing from validator index: {}", address, e);
-        }
     }
 }

@@ -34,7 +34,7 @@ public class BlockchainBootstrapRunner implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         bootstrapPeers();
-        bootstrapGenesisAndAdmin();
+        bootstrapGenesisAndValidators();
     }
 
     private void bootstrapPeers() {
@@ -50,27 +50,45 @@ public class BlockchainBootstrapRunner implements CommandLineRunner {
         log.info("Bootstrap peers loaded: {}", peerRepository.findAll().size());
     }
 
-    private void bootstrapGenesisAndAdmin() throws IOException {
+    private void bootstrapGenesisAndValidators() throws IOException {
         if (blockService.findLatest().isPresent()) {
             return;
         }
 
-        String adminPublicKey = bootstrapProperties.getAdminPublicKey();
-        if (adminPublicKey == null || adminPublicKey.isBlank()) {
-            throw new IllegalStateException("blockchain.bootstrap.admin-public-key must be configured for first startup");
+        List<String> validatorPublicKeys = bootstrapProperties.getValidatorPublicKeys();
+        if (validatorPublicKeys == null || validatorPublicKeys.isEmpty()) {
+            throw new IllegalStateException(
+                    "blockchain.bootstrap.validator-public-keys must be configured for first startup");
         }
 
-        String adminAddress = cryptoService.generateAddress(adminPublicKey);
-        Account admin = accountRepository.findByAddress(adminAddress).orElseGet(() -> {
-            Account account = new Account(adminAddress, adminPublicKey, adminAddress);
-            account.setAccountRoles(new ArrayList<>(List.of(
-                    AccountRole.ADMIN, AccountRole.USER, AccountRole.AUDITOR, AccountRole.VALIDATOR)));
-            account.setActive(true);
-            return account;
-        });
-        accountRepository.save(admin);
+        List<String> validatorAddresses = new ArrayList<>();
+        for (String publicKeyBase64 : validatorPublicKeys) {
+            if (publicKeyBase64 == null || publicKeyBase64.isBlank()) {
+                continue;
+            }
+            String trimmedKey = publicKeyBase64.trim();
+            String address = cryptoService.generateAddress(trimmedKey);
+            validatorAddresses.add(address);
 
-        blockCreationService.createGenesisBlock(adminAddress, List.of());
-        log.info("Bootstrap complete: admin={}, genesis created", adminAddress);
+            Account account = accountRepository.findByAddress(address).orElseGet(() -> {
+                Account created = new Account(address, trimmedKey, address);
+                created.setAccountRoles(new ArrayList<>(List.of(
+                        AccountRole.VALIDATOR, AccountRole.USER, AccountRole.AUDITOR)));
+                created.setActive(true);
+                return created;
+            });
+            accountRepository.saveWithoutValidatorIndexUpdate(account);
+        }
+
+        if (validatorAddresses.isEmpty()) {
+            throw new IllegalStateException("No valid validator public keys in bootstrap configuration");
+        }
+
+        accountRepository.initializeValidatorsList(validatorAddresses);
+        accountRepository.initializeBootstrapValidators(validatorAddresses);
+
+        String genesisValidator = validatorAddresses.getFirst();
+        blockCreationService.createGenesisBlock(genesisValidator, List.of());
+        log.info("Bootstrap complete: validators={}, genesis validator={}", validatorAddresses, genesisValidator);
     }
 }

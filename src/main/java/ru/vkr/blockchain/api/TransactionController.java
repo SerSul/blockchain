@@ -3,6 +3,9 @@ package ru.vkr.blockchain.api;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -11,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import ru.vkr.blockchain.domain.model.enums.TransactionStatus;
 import ru.vkr.blockchain.domain.model.enums.TransactionType;
 import ru.vkr.blockchain.dto.ApiResponse;
@@ -18,6 +22,7 @@ import ru.vkr.blockchain.dto.CreateTransactionRequest;
 import ru.vkr.blockchain.dto.PageResponse;
 import ru.vkr.blockchain.dto.TransactionDto;
 import ru.vkr.blockchain.service.BlockChainService;
+import ru.vkr.blockchain.service.FileStorageService;
 import ru.vkr.blockchain.service.TransactionQueryService;
 
 @RestController
@@ -27,6 +32,7 @@ import ru.vkr.blockchain.service.TransactionQueryService;
 public class TransactionController {
 
     private final BlockChainService blockChainService;
+    private final FileStorageService fileStorageService;
     private final TransactionQueryService transactionQueryService;
 
     @PostMapping("/store")
@@ -39,6 +45,46 @@ public class TransactionController {
         log.info("API storeData accepted");
         blockChainService.storeData(request);
         return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    /**
+     * Загрузка файла в MinIO и регистрация STORE_FILE транзакции.
+     * payload — JSON: {"fileName":"...", "fileHash":"<sha256 hex>", "size":123}
+     */
+    @PostMapping(value = "/store-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<String>> storeFile(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("creator_public_key") String creatorPublicKey,
+            @RequestParam("payload") String payload,
+            @RequestParam("signature") String signature,
+            @RequestParam(value = "content_type", required = false) String contentType) {
+
+        CreateTransactionRequest request = new CreateTransactionRequest(
+                creatorPublicKey,
+                TransactionType.STORE_FILE,
+                payload,
+                contentType,
+                signature
+        );
+
+        log.info("API storeFile fileName={}, size={}", file.getOriginalFilename(), file.getSize());
+        fileStorageService.storeFile(request, file);
+        return ResponseEntity.ok(ApiResponse.success("File uploaded and STORE_FILE transaction added to pending pool"));
+    }
+
+    @GetMapping("/files/{fileHash}")
+    public ResponseEntity<InputStreamResource> downloadFile(@PathVariable String fileHash) {
+        log.info("API downloadFile fileHash={}", fileHash);
+        var stored = fileStorageService.download(fileHash);
+        MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        if (stored.contentType() != null && !stored.contentType().isBlank()) {
+            mediaType = MediaType.parseMediaType(stored.contentType());
+        }
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileHash + "\"")
+                .contentType(mediaType)
+                .contentLength(stored.size())
+                .body(new InputStreamResource(stored.stream()));
     }
 
     /**

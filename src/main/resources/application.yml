@@ -25,6 +25,10 @@ spring:
     change-log: ${SPRING_LIQUIBASE_CHANGE_LOG:classpath:db/changelog/db.changelog-master.yaml}
     enabled: ${SPRING_LIQUIBASE_ENABLED:true}
 
+  servlet:
+    multipart:
+      max-file-size: ${SPRING_MULTIPART_MAX_FILE_SIZE:10MB}
+      max-request-size: ${SPRING_MULTIPART_MAX_REQUEST_SIZE:10MB}
 
 leveldb:
   path: ${LEVELDB_PATH:./data/leveldb}
@@ -33,9 +37,17 @@ leveldb:
 
 blockchain:
   bootstrap:
-    admin-public-key: ${BLOCKCHAIN_BOOTSTRAP_ADMIN_PUBLIC_KEY:${ADMIN_PUBLIC_KEY:}}
+    validator-public-keys: ${BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS:}
     peers: []
     sync-enabled: ${BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED:true}
     sync-batch-size: ${BLOCKCHAIN_BOOTSTRAP_SYNC_BATCH_SIZE:50}
   sync:
     interval-ms: ${BLOCKCHAIN_SYNC_INTERVAL_MS:15000}
+
+minio:
+  enabled: ${MINIO_ENABLED:true}
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  bucket: ${MINIO_BUCKET:blockchain-files}
+  max-file-size-bytes: ${MINIO_MAX_FILE_SIZE_BYTES:10485760}

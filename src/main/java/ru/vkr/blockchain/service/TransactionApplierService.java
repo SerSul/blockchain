@@ -54,6 +54,7 @@ public class TransactionApplierService {
             case UPDATE_ACCOUNT_ROLES -> applyUpdateAccountRoles(transaction);
             case DEACTIVATE_ACCOUNT -> applyDeactivateAccount(transaction);
             case STORE_DATA -> applyStoreData(transaction);
+            case STORE_FILE -> applyStoreFile(transaction);
             case ADD_PEER -> applyAddPeer(transaction);
             case REMOVE_PEER -> applyRemovePeer(transaction);
         }
@@ -71,43 +72,51 @@ public class TransactionApplierService {
             throw new IllegalStateException("Account already exists: " + address);
         }
 
-        boolean isFirstAccount = accountRepository.findAll().isEmpty();
         Account account = new Account(address, publicKeyBase64, tx.getSenderId());
-        if (isFirstAccount) {
-            account.setAccountRoles(new ArrayList<>(List.of(AccountRole.ADMIN, AccountRole.USER, AccountRole.AUDITOR, AccountRole.VALIDATOR)));
-        }
+        account.setAccountRoles(new ArrayList<>(List.of(AccountRole.USER)));
         try {
             accountRepository.save(account);
         } catch (IOException e) {
             throw new RuntimeException("Failed to save account", e);
         }
-        String details = "Transaction " + tx.getId();
-        if (isFirstAccount) {
-            details += " (first account, roles: ADMIN, USER, AUDITOR, VALIDATOR)";
-        }
-        auditLogRepository.save(new AuditLog(ENTITY_ACCOUNT, address, "CREATE_ACCOUNT", tx.getSenderId(), details));
+        auditLogRepository.save(new AuditLog(ENTITY_ACCOUNT, address, "CREATE_ACCOUNT", tx.getSenderId(),
+                "Transaction " + tx.getId()));
     }
 
     private void applyUpdateAccountRoles(Transaction tx) {
         UpdateAccountRolesPayload payload = parsePayload(tx.getPayload(), UpdateAccountRolesPayload.class);
-        Account account = accountRepository.findByAddress(payload.getTargetAddress())
-                .orElseThrow(() -> new UserNotFoundException(payload.getTargetAddress()));
+        String targetAddress = payload.getTargetAddress();
+        Account account = accountRepository.findByAddress(targetAddress)
+                .orElseThrow(() -> new UserNotFoundException(targetAddress));
 
         if (!account.isActive()) {
-            throw new IllegalStateException("Cannot update roles for inactive account: " + payload.getTargetAddress());
+            throw new IllegalStateException("Cannot update roles for inactive account: " + targetAddress);
         }
-        if (account.getAccountRoles().contains(AccountRole.ADMIN)) {
-            throw new IllegalStateException("Cannot modify admin account");
+        if (accountRepository.isBootstrapValidator(targetAddress)) {
+            throw new IllegalStateException("Cannot change roles of bootstrap validator: " + targetAddress);
         }
+
+        boolean hadValidatorRole = account.getAccountRoles().contains(AccountRole.VALIDATOR);
+        boolean willHaveValidatorRole = payload.getRoles().contains(AccountRole.VALIDATOR);
 
         account.setAccountRoles(new ArrayList<>(payload.getRoles()));
         try {
             accountRepository.update(account);
+            syncValidatorsList(targetAddress, hadValidatorRole, willHaveValidatorRole);
         } catch (IOException e) {
             throw new RuntimeException("Failed to update account", e);
         }
-        auditLogRepository.save(new AuditLog(ENTITY_ACCOUNT, payload.getTargetAddress(), "UPDATE_ROLES", tx.getSenderId(),
+        auditLogRepository.save(new AuditLog(ENTITY_ACCOUNT, targetAddress, "UPDATE_ROLES", tx.getSenderId(),
                 "Transaction " + tx.getId() + ", roles: " + payload.getRoles()));
+    }
+
+    private void syncValidatorsList(String address, boolean hadValidatorRole, boolean willHaveValidatorRole)
+            throws IOException {
+        if (willHaveValidatorRole && !hadValidatorRole) {
+            accountRepository.addValidator(address);
+        } else if (!willHaveValidatorRole && hadValidatorRole) {
+            accountRepository.removeValidator(address);
+        }
     }
 
     private void applyDeactivateAccount(Transaction tx) {
@@ -118,13 +127,16 @@ public class TransactionApplierService {
         if (!account.isActive()) {
             throw new IllegalStateException("Account already inactive: " + payload.getTargetAddress());
         }
-        if (account.getAccountRoles().contains(AccountRole.ADMIN)) {
-            throw new IllegalStateException("Cannot deactivate admin account");
+        if (accountRepository.isBootstrapValidator(payload.getTargetAddress())) {
+            throw new IllegalStateException("Cannot deactivate bootstrap validator: " + payload.getTargetAddress());
         }
 
         account.setActive(false);
         try {
             accountRepository.update(account);
+            if (account.getAccountRoles().contains(AccountRole.VALIDATOR)) {
+                accountRepository.removeValidator(payload.getTargetAddress());
+            }
         } catch (IOException e) {
             throw new RuntimeException("Failed to deactivate account", e);
         }
@@ -133,8 +145,12 @@ public class TransactionApplierService {
     }
 
     private void applyStoreData(Transaction tx) {
-        // STORE_DATA — данные уже в payload транзакции, блок сохраняет их.
         auditLogRepository.save(new AuditLog(ENTITY_TRANSACTION, tx.getId(), "STORE_DATA", tx.getSenderId(),
+                "Transaction " + tx.getId()));
+    }
+
+    private void applyStoreFile(Transaction tx) {
+        auditLogRepository.save(new AuditLog(ENTITY_TRANSACTION, tx.getId(), "STORE_FILE", tx.getSenderId(),
                 "Transaction " + tx.getId()));
     }
 

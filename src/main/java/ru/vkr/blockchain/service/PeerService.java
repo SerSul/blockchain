@@ -30,7 +30,7 @@ public class PeerService {
         return peerRepository.findAll();
     }
 
-    @RequireRole(AccountRole.ADMIN)
+    @RequireRole(AccountRole.VALIDATOR)
     public void addPeer(CreateTransactionRequest request) {
         if (request.getTransactionType() != TransactionType.ADD_PEER) {
             throw new IllegalArgumentException("transaction_type must be ADD_PEER");
@@ -46,7 +46,7 @@ public class PeerService {
         pendingTransactionRepository.save(tx);
     }
 
-    @RequireRole(AccountRole.ADMIN)
+    @RequireRole(AccountRole.VALIDATOR)
     public void removePeer(CreateTransactionRequest request) {
         if (request.getTransactionType() != TransactionType.REMOVE_PEER) {
             throw new IllegalArgumentException("transaction_type must be REMOVE_PEER");

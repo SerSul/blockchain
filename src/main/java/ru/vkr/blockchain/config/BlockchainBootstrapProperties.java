@@ -13,7 +13,8 @@ import java.util.List;
 public class BlockchainBootstrapProperties {
 
     private List<String> peers = new ArrayList<>();
-    private String adminPublicKey;
+    /** Base64 публичные ключи валидаторов (порядок = round-robin). */
+    private List<String> validatorPublicKeys = new ArrayList<>();
     private boolean syncEnabled = true;
     private int syncBatchSize = 50;
 }

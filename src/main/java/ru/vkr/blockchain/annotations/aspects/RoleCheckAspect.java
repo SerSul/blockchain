@@ -14,7 +14,6 @@ import ru.vkr.blockchain.domain.model.enums.AccountRole;
 import ru.vkr.blockchain.repository.AccountRepository;
 import ru.vkr.blockchain.repository.entity.AuditLogRepository;
 import ru.vkr.blockchain.service.CryptoService;
-import ru.vkr.blockchain.service.domain.BlockService;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -29,7 +28,6 @@ public class RoleCheckAspect {
     private static final String SYSTEM_ACTOR = "system";
     private final AccountRepository accountRepository;
     private final CryptoService cryptoService;
-    private final BlockService blockService;
     private final AuditLogRepository auditLogRepository;
 
     @Before("@annotation(ru.vkr.blockchain.annotations.RequireRole)")
@@ -39,12 +37,6 @@ public class RoleCheckAspect {
         RequireRole requireRole = method.getAnnotation(RequireRole.class);
 
         if (requireRole == null) {
-            return;
-        }
-
-        if ("createAccount".equals(method.getName())
-                && accountRepository.findAll().isEmpty()
-                && blockService.findLatest().isEmpty()) {
             return;
         }
 

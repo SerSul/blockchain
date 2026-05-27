@@ -1,4 +1,22 @@
 services:
+  minio:
+    image: minio/minio:latest
+    container_name: blockchain-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    ports:
+      - "${MINIO_API_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   postgres-node1:
     image: postgres:16-alpine
     container_name: blockchain-postgres-node1
@@ -39,6 +57,8 @@ services:
       dockerfile: Dockerfile
     container_name: blockchain-node1
     depends_on:
+      minio:
+        condition: service_healthy
       postgres-node1:
         condition: service_healthy
       postgres-node2:
@@ -50,11 +70,16 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       LEVELDB_PATH: ${NODE1_LEVELDB_PATH}
-      BLOCKCHAIN_BOOTSTRAP_ADMIN_PUBLIC_KEY: ${BLOCKCHAIN_BOOTSTRAP_ADMIN_PUBLIC_KEY}
+      BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_0: ${BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_0}
+      BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_1: ${BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_1}
       BLOCKCHAIN_BOOTSTRAP_PEERS_0: http://node2:${NODE2_APP_PORT}
       BLOCKCHAIN_SYNC_INTERVAL_MS: ${BLOCKCHAIN_SYNC_INTERVAL_MS}
       BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED: ${BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED}
       BLOCKCHAIN_BOOTSTRAP_SYNC_BATCH_SIZE: ${BLOCKCHAIN_BOOTSTRAP_SYNC_BATCH_SIZE}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
     ports:
       - "${NODE1_APP_PORT}:${NODE1_APP_PORT}"
     volumes:
@@ -66,6 +91,8 @@ services:
       dockerfile: Dockerfile
     container_name: blockchain-node2
     depends_on:
+      minio:
+        condition: service_healthy
       postgres-node1:
         condition: service_healthy
       postgres-node2:
@@ -77,17 +104,23 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       LEVELDB_PATH: ${NODE2_LEVELDB_PATH}
-      BLOCKCHAIN_BOOTSTRAP_ADMIN_PUBLIC_KEY: ${BLOCKCHAIN_BOOTSTRAP_ADMIN_PUBLIC_KEY}
+      BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_0: ${BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_0}
+      BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_1: ${BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_1}
       BLOCKCHAIN_BOOTSTRAP_PEERS_0: http://node1:${NODE1_APP_PORT}
       BLOCKCHAIN_SYNC_INTERVAL_MS: ${BLOCKCHAIN_SYNC_INTERVAL_MS}
       BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED: ${BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED}
       BLOCKCHAIN_BOOTSTRAP_SYNC_BATCH_SIZE: ${BLOCKCHAIN_BOOTSTRAP_SYNC_BATCH_SIZE}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
     ports:
       - "${NODE2_APP_PORT}:${NODE2_APP_PORT}"
     volumes:
       - leveldb_node2_data:/data/leveldb
 
 volumes:
+  minio_data:
   pg_node1_data:
   pg_node2_data:
   leveldb_node1_data:

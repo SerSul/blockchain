@@ -27,14 +27,27 @@ public class BlockChainService {
 
     private final CryptoService cryptoService;
     private final TransactionService transactionService;
+    private final StoreDataPayloadValidator storeDataPayloadValidator;
 
     private final PendingTransactionRepository pendingTransactionRepository;
 
-    @RequireRole({AccountRole.USER, AccountRole.VALIDATOR, AccountRole.ADMIN})
+    @RequireRole({AccountRole.USER, AccountRole.VALIDATOR})
     public void storeData(CreateTransactionRequest request) {
         if (!cryptoService.checkSignatureValid(request.getPayload(), request.getSignature(), request.getCreatorPublicKey())) {
             throw new SecurityException("Invalid signature for transaction");
         }
+
+        Transaction transaction = transactionService.createTransaction(request);
+        pendingTransactionRepository.save(transaction);
+    }
+
+    @RequireRole({AccountRole.USER, AccountRole.VALIDATOR})
+    public void storeFile(CreateTransactionRequest request) {
+        if (!cryptoService.checkSignatureValid(request.getPayload(), request.getSignature(), request.getCreatorPublicKey())) {
+            throw new SecurityException("Invalid signature for transaction");
+        }
+
+        storeDataPayloadValidator.validateFilePayload(request.getPayload());
 
         Transaction transaction = transactionService.createTransaction(request);
         pendingTransactionRepository.save(transaction);

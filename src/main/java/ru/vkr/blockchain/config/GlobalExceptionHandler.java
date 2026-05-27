@@ -89,6 +89,14 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("Storage error: " + ex.getMessage()));
     }
 
+    @ExceptionHandler(FileNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleFileNotFound(FileNotFoundException ex) {
+        log.error("File not found: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(BlockchainException.class)
     public ResponseEntity<ApiResponse<Void>> handleBlockchainException(BlockchainException ex) {
         log.error("Blockchain error: {}", ex.getMessage(), ex);
