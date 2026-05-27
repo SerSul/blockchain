@@ -17,111 +17,55 @@ services:
       timeout: 5s
       retries: 20
 
-  postgres-node1:
+  postgres:
     image: postgres:16-alpine
-    container_name: blockchain-postgres-node1
+    container_name: blockchain-postgres
     environment:
-      POSTGRES_DB: ${NODE1_DB_NAME}
+      POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "${NODE1_DB_HOST_PORT}:5432"
+      - "${DB_HOST_PORT}:5432"
     volumes:
-      - pg_node1_data:/var/lib/postgresql/data
+      - pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${NODE1_DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 20
 
-  postgres-node2:
-    image: postgres:16-alpine
-    container_name: blockchain-postgres-node2
-    environment:
-      POSTGRES_DB: ${NODE2_DB_NAME}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "${NODE2_DB_HOST_PORT}:5432"
-    volumes:
-      - pg_node2_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${NODE2_DB_NAME}"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-
-  node1:
+  node:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: blockchain-node1
+    container_name: blockchain-node
     depends_on:
       minio:
         condition: service_healthy
-      postgres-node1:
-        condition: service_healthy
-      postgres-node2:
+      postgres:
         condition: service_healthy
     environment:
-      SERVER_PORT: ${NODE1_APP_PORT}
+      SERVER_PORT: ${APP_PORT}
       SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-node1:5432/${NODE1_DB_NAME}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-      LEVELDB_PATH: ${NODE1_LEVELDB_PATH}
+      LEVELDB_PATH: ${LEVELDB_PATH}
       BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_0: ${BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_0}
-      BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_1: ${BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_1}
-      BLOCKCHAIN_BOOTSTRAP_PEERS_0: http://node2:${NODE2_APP_PORT}
-      BLOCKCHAIN_SYNC_INTERVAL_MS: ${BLOCKCHAIN_SYNC_INTERVAL_MS}
-      BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED: ${BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED}
-      BLOCKCHAIN_BOOTSTRAP_SYNC_BATCH_SIZE: ${BLOCKCHAIN_BOOTSTRAP_SYNC_BATCH_SIZE}
+      BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_1: ${BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_1:-}
+      BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED: ${BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED:-false}
+      BLOCKCHAIN_SYNC_INTERVAL_MS: ${BLOCKCHAIN_SYNC_INTERVAL_MS:-15000}
+      BLOCKCHAIN_BOOTSTRAP_SYNC_BATCH_SIZE: ${BLOCKCHAIN_BOOTSTRAP_SYNC_BATCH_SIZE:-50}
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_BUCKET: ${MINIO_BUCKET}
     ports:
-      - "${NODE1_APP_PORT}:${NODE1_APP_PORT}"
+      - "${APP_PORT}:${APP_PORT}"
     volumes:
-      - leveldb_node1_data:/data/leveldb
-
-  node2:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: blockchain-node2
-    depends_on:
-      minio:
-        condition: service_healthy
-      postgres-node1:
-        condition: service_healthy
-      postgres-node2:
-        condition: service_healthy
-    environment:
-      SERVER_PORT: ${NODE2_APP_PORT}
-      SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-node2:5432/${NODE2_DB_NAME}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-      LEVELDB_PATH: ${NODE2_LEVELDB_PATH}
-      BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_0: ${BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_0}
-      BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_1: ${BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS_1}
-      BLOCKCHAIN_BOOTSTRAP_PEERS_0: http://node1:${NODE1_APP_PORT}
-      BLOCKCHAIN_SYNC_INTERVAL_MS: ${BLOCKCHAIN_SYNC_INTERVAL_MS}
-      BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED: ${BLOCKCHAIN_BOOTSTRAP_SYNC_ENABLED}
-      BLOCKCHAIN_BOOTSTRAP_SYNC_BATCH_SIZE: ${BLOCKCHAIN_BOOTSTRAP_SYNC_BATCH_SIZE}
-      MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
-      MINIO_BUCKET: ${MINIO_BUCKET}
-    ports:
-      - "${NODE2_APP_PORT}:${NODE2_APP_PORT}"
-    volumes:
-      - leveldb_node2_data:/data/leveldb
+      - leveldb_data:/data/leveldb
 
 volumes:
   minio_data:
-  pg_node1_data:
-  pg_node2_data:
-  leveldb_node1_data:
-  leveldb_node2_data:
+  pg_data:
+  leveldb_data:
