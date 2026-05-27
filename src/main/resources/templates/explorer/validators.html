@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head th:replace="~{fragments/explorer :: head ('Валидаторы')}">
+    <title>Валидаторы</title>
+</head>
+<body>
+<div th:replace="~{fragments/explorer :: nav}"></div>
+<main>
+    <h1>Валидаторы сети</h1>
+    <p class="hint">Round-robin: порядок в таблице = очередь подписи блоков. Bootstrap-валидаторы заданы при первом запуске узла; остальных добавляют через <span class="mono">UPDATE_ACCOUNT_ROLES</span>.</p>
+
+    <div class="stats" th:if="${networkStatus != null}">
+        <div class="stat">
+            <div class="stat-label">Высота цепочки</div>
+            <div class="stat-value" th:text="${networkStatus.latestHeight}">0</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Следующий блок #</div>
+            <div class="stat-value" th:text="${networkStatus.nextBlockHeight}">1</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Следующий валидатор</div>
+            <div class="stat-value" th:text="${networkStatus.nextValidatorAddress != null ? networkStatus.nextValidatorAddress : '—'}">—</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Всего / bootstrap</div>
+            <div class="stat-value" th:text="|${networkStatus.validatorCount} / ${networkStatus.bootstrapValidatorCount}|">0</div>
+        </div>
+    </div>
+
+    <div class="card" th:if="${validators != null && !validators.isEmpty()}">
+        <table>
+            <thead>
+            <tr>
+                <th>#</th>
+                <th>Адрес</th>
+                <th>Роли</th>
+                <th>Тип</th>
+                <th>Статус</th>
+                <th>Блоки</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="v : ${validators}">
+                <td th:text="${v.roundRobinIndex}">0</td>
+                <td class="mono">
+                    <a class="hash-link" th:href="@{/explorer/blocks(validatorAddress=${v.address})}"
+                       th:text="${v.address}">0x…</a>
+                </td>
+                <td>
+                    <span class="role-list">
+                        <span th:each="role : ${v.roles}"
+                              th:classappend="${role.name() == 'VALIDATOR'} ? 'badge badge-validator' : (${role.name() == 'USER'} ? 'badge badge-user' : 'badge badge-auditor')"
+                              th:text="${role}">USER</span>
+                    </span>
+                </td>
+                <td>
+                    <span th:if="${v.bootstrap}" class="badge badge-bootstrap">bootstrap</span>
+                    <span th:if="${!v.bootstrap}" class="badge">добавлен</span>
+                </td>
+                <td>
+                    <span th:if="${v.active}" class="badge badge-user">active</span>
+                    <span th:unless="${v.active}" class="badge badge-inactive">inactive</span>
+                </td>
+                <td>
+                    <a class="hash-link" th:href="@{/explorer/blocks(validatorAddress=${v.address})}">фильтр</a>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card empty" th:if="${validators == null || validators.isEmpty()}">
+        Список валидаторов пуст. Задайте <span class="mono">blockchain.bootstrap.validator-public-keys</span> и перезапустите узел с чистым хранилищем.
+    </div>
+</main>
+</body>
+</html>

@@ -12,6 +12,7 @@ import ru.vkr.blockchain.dto.PageResponse;
 import ru.vkr.blockchain.dto.TransactionDto;
 import ru.vkr.blockchain.domain.entity.BlockMetadata;
 import ru.vkr.blockchain.service.BlockQueryService;
+import ru.vkr.blockchain.service.NetworkOverviewService;
 import ru.vkr.blockchain.service.TransactionQueryService;
 
 import java.util.Optional;
@@ -23,6 +24,7 @@ public class BlockExplorerController {
 
     private final BlockQueryService blockQueryService;
     private final TransactionQueryService transactionQueryService;
+    private final NetworkOverviewService networkOverviewService;
 
     @GetMapping({"", "/"})
     public String root() {
@@ -44,7 +46,23 @@ public class BlockExplorerController {
         model.addAttribute("heightTo", heightTo);
         model.addAttribute("validatorAddress", validatorAddress);
         model.addAttribute("size", size);
+        model.addAttribute("networkStatus", networkOverviewService.getStatus());
+        model.addAttribute("validators", networkOverviewService.getValidators());
         return "explorer/blocks";
+    }
+
+    @GetMapping("/validators")
+    public String listValidators(Model model) {
+        model.addAttribute("validators", networkOverviewService.getValidators());
+        model.addAttribute("networkStatus", networkOverviewService.getStatus());
+        return "explorer/validators";
+    }
+
+    @GetMapping("/accounts")
+    public String listAccounts(Model model) {
+        model.addAttribute("accounts", networkOverviewService.getAccountsForExplorer());
+        model.addAttribute("networkStatus", networkOverviewService.getStatus());
+        return "explorer/accounts";
     }
 
     @GetMapping("/pending")

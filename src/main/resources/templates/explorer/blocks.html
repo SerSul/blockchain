@@ -8,6 +8,27 @@
 <main>
     <h1>Блоки</h1>
 
+    <div class="stats" th:if="${networkStatus != null}">
+        <div class="stat">
+            <div class="stat-label">Высота</div>
+            <div class="stat-value" th:text="${networkStatus.latestHeight}">0</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Pending</div>
+            <div class="stat-value" th:text="${networkStatus.pendingTransactions}">0</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">След. валидатор</div>
+            <div class="stat-value" th:text="${networkStatus.nextValidatorAddress != null ? (#strings.length(networkStatus.nextValidatorAddress) > 18 ? #strings.substring(networkStatus.nextValidatorAddress,0,16) + '…' : networkStatus.nextValidatorAddress) : '—'}">—</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Валидаторов</div>
+            <div class="stat-value">
+                <a class="hash-link" th:href="@{/explorer/validators}" th:text="${networkStatus.validatorCount}">0</a>
+            </div>
+        </div>
+    </div>
+
     <form class="card filters" method="get" th:action="@{/explorer/blocks}">
         <label>Высота от
             <input type="number" name="heightFrom" th:value="${heightFrom}"/>
@@ -46,7 +67,10 @@
                 </td>
                 <td class="mono muted" th:text="${b.previousHash != null ? #strings.substring(b.previousHash,0,10) + '…' : '—'}">—</td>
                 <td th:text="${b.transactionCount}">0</td>
-                <td class="mono muted" th:text="${#strings.substring(b.validatorAddress,0,14)} + '…'">0x…</td>
+                <td class="mono">
+                    <a class="hash-link" th:href="@{/explorer/blocks(validatorAddress=${b.validatorAddress})}"
+                       th:text="${#strings.substring(b.validatorAddress,0,14)} + '…'">0x…</a>
+                </td>
                 <td th:text="${#temporals.format(b.timestamp, 'yyyy-MM-dd HH:mm:ss')}">—</td>
                 <td><span class="badge" th:text="${b.status}">CONFIRMED</span></td>
             </tr>

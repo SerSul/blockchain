@@ -28,7 +28,10 @@
                 <dt>Merkle root</dt>
                 <dd th:text="${metadata.merkleRoot}">—</dd>
                 <dt>Валидатор</dt>
-                <dd th:text="${metadata.validatorAddress}">—</dd>
+                <dd>
+                    <a class="hash-link" th:href="@{/explorer/blocks(validatorAddress=${metadata.validatorAddress})}"
+                       th:text="${metadata.validatorAddress}">—</a>
+                </dd>
                 <dt>Транзакций</dt>
                 <dd th:text="${metadata.transactionCount}">—</dd>
                 <dt>Время</dt>
@@ -52,7 +55,10 @@
                 <dt>Merkle root</dt>
                 <dd th:text="${block.merkleRoot}">—</dd>
                 <dt>Валидатор</dt>
-                <dd th:text="${block.validatorAddress}">—</dd>
+                <dd>
+                    <a class="hash-link" th:href="@{/explorer/blocks(validatorAddress=${block.validatorAddress})}"
+                       th:text="${block.validatorAddress}">—</a>
+                </dd>
                 <dt>Подпись валидатора</dt>
                 <dd th:text="${block.validatorSignature != null && !block.validatorSignature.isEmpty() ? block.validatorSignature : '—'}">—</dd>
                 <dt>Время</dt>

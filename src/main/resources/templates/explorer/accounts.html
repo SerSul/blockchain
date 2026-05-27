@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head th:replace="~{fragments/explorer :: head ('Аккаунты')}">
+    <title>Аккаунты</title>
+</head>
+<body>
+<div th:replace="~{fragments/explorer :: nav}"></div>
+<main>
+    <h1>Аккаунты</h1>
+    <p class="hint">Все учётные записи в LevelDB. В round-robin участвуют только адреса из списка валидаторов.</p>
+
+    <div class="card" th:if="${accounts != null && !accounts.isEmpty()}">
+        <table>
+            <thead>
+            <tr>
+                <th>Адрес</th>
+                <th>Роли</th>
+                <th>Round-robin</th>
+                <th>Bootstrap</th>
+                <th>Статус</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="a : ${accounts}">
+                <td class="mono" th:text="${a.address}">0x…</td>
+                <td>
+                    <span class="role-list">
+                        <span th:each="role : ${a.roles}"
+                              th:classappend="${role.name() == 'VALIDATOR'} ? 'badge badge-validator' : (${role.name() == 'USER'} ? 'badge badge-user' : 'badge badge-auditor')"
+                              th:text="${role}">USER</span>
+                    </span>
+                </td>
+                <td th:text="${a.inValidatorRoundRobin} ? 'да' : '—'">—</td>
+                <td th:text="${a.bootstrapValidator} ? 'да' : '—'">—</td>
+                <td>
+                    <span th:if="${a.active}" class="badge badge-user">active</span>
+                    <span th:unless="${a.active}" class="badge badge-inactive">inactive</span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card empty" th:if="${accounts == null || accounts.isEmpty()}">
+        Нет аккаунтов. Создайте genesis (bootstrap) или транзакцию <span class="mono">CREATE_ACCOUNT</span>.
+    </div>
+</main>
+</body>
+</html>

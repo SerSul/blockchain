@@ -21,7 +21,11 @@
                 <dt>ID</dt>
                 <dd th:text="${tx.id}">—</dd>
                 <dt>Тип</dt>
-                <dd th:text="${tx.transactionType}">—</dd>
+                <dd>
+                    <span class="badge" th:text="${tx.transactionType}">—</span>
+                    <span class="muted" th:if="${tx.transactionType != null && tx.transactionType.name() == 'UPDATE_ACCOUNT_ROLES'}"> — назначение ролей / валидатора</span>
+                    <span class="muted" th:if="${tx.transactionType != null && tx.transactionType.name() == 'CREATE_ACCOUNT'}"> — новый аккаунт</span>
+                </dd>
                 <dt>Отправитель</dt>
                 <dd th:text="${tx.senderId}">—</dd>
                 <dt>Статус</dt>
