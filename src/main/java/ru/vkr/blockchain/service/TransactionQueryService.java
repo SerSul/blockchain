@@ -113,6 +113,8 @@ public class TransactionQueryService {
         Optional<TransactionMetadata> meta = transactionMetadataRepository.findById(id);
         if (meta.isPresent()) {
             TransactionDto dto = transactionMapper.toDto(meta.get());
+            dto.setFileHash(meta.get().getFileHash());
+            dto.setPreviousTransactionId(meta.get().getPreviousTransactionId());
             blockService.findByHash(meta.get().getBlockHash())
                     .map(Block::getTransactions)
                     .stream().flatMap(List::stream)

@@ -8,6 +8,7 @@ import ru.vkr.blockchain.annotations.RequireRole;
 import ru.vkr.blockchain.dto.CreateTransactionRequest;
 import ru.vkr.blockchain.domain.model.Transaction;
 import ru.vkr.blockchain.domain.model.enums.AccountRole;
+import ru.vkr.blockchain.dto.StoreDataPayload;
 import ru.vkr.blockchain.repository.PendingTransactionRepository;
 import ru.vkr.blockchain.service.domain.TransactionService;
 
@@ -32,25 +33,30 @@ public class BlockChainService {
     private final PendingTransactionRepository pendingTransactionRepository;
 
     @RequireRole({AccountRole.USER, AccountRole.VALIDATOR})
-    public void storeData(CreateTransactionRequest request) {
+    public String storeData(CreateTransactionRequest request) {
         if (!cryptoService.checkSignatureValid(request.getPayload(), request.getSignature(), request.getCreatorPublicKey())) {
             throw new SecurityException("Invalid signature for transaction");
         }
 
         Transaction transaction = transactionService.createTransaction(request);
         pendingTransactionRepository.save(transaction);
+        return transaction.getId();
     }
 
     @RequireRole({AccountRole.USER, AccountRole.VALIDATOR})
-    public void storeFile(CreateTransactionRequest request) {
+    public String storeFile(CreateTransactionRequest request) {
         if (!cryptoService.checkSignatureValid(request.getPayload(), request.getSignature(), request.getCreatorPublicKey())) {
             throw new SecurityException("Invalid signature for transaction");
         }
 
         storeDataPayloadValidator.validateFilePayload(request.getPayload());
+        StoreDataPayload parsed = storeDataPayloadValidator.parse(request.getPayload());
+        storeDataPayloadValidator.validatePreviousTransaction(
+                parsed, cryptoService.generateAddress(request.getCreatorPublicKey()));
 
         Transaction transaction = transactionService.createTransaction(request);
         pendingTransactionRepository.save(transaction);
+        return transaction.getId();
     }
 
     public Collection<Transaction> getPendingTransactions() {

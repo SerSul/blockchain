@@ -36,6 +36,7 @@ leveldb:
   cache-size: ${LEVELDB_CACHE_SIZE:104857600}
 
 blockchain:
+  node-id: ${BLOCKCHAIN_NODE_ID:local}
   bootstrap:
     validator-public-keys: ${BLOCKCHAIN_BOOTSTRAP_VALIDATOR_PUBLIC_KEYS:}
     peers: []

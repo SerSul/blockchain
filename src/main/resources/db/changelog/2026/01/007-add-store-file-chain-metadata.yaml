@@ -1,0 +1,24 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20260604-store-file-chain-1
+      author: laplas7
+      changes:
+        - addColumn:
+            tableName: transactions_metadata
+            columns:
+              - column:
+                  name: file_hash
+                  type: VARCHAR(64)
+              - column:
+                  name: previous_transaction_id
+                  type: VARCHAR(255)
+  - changeSet:
+      id: 20260604-store-file-chain-2
+      author: laplas7
+      changes:
+        - createIndex:
+            tableName: transactions_metadata
+            indexName: idx_tx_file_hash
+            columns:
+              - column:
+                  name: file_hash

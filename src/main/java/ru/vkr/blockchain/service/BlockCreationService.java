@@ -8,6 +8,7 @@ import ru.vkr.blockchain.dto.PrepareBlockResponse;
 import ru.vkr.blockchain.domain.model.Block;
 import ru.vkr.blockchain.domain.model.Transaction;
 import ru.vkr.blockchain.domain.model.enums.BlockStatus;
+import ru.vkr.blockchain.domain.model.enums.TransactionType;
 import ru.vkr.blockchain.domain.entity.AuditLog;
 import ru.vkr.blockchain.domain.entity.BlockMetadata;
 import ru.vkr.blockchain.domain.entity.TransactionMetadata;
@@ -45,6 +46,7 @@ public class BlockCreationService {
     private final AuditLogRepository auditLogRepository;
     private final BlockMetadataRepository blockMetadataRepository;
     private final TransactionMetadataRepository transactionMetadataRepository;
+    private final StoreDataPayloadValidator storeDataPayloadValidator;
 
     /**
      * Подготовка блока: возвращает хеш для подписи и данные (timestamp, transaction_ids)
@@ -280,6 +282,11 @@ public class BlockCreationService {
         m.setContentSize(tx.getPayload() != null ? (long) tx.getPayload().getBytes(java.nio.charset.StandardCharsets.UTF_8).length : 0L);
         m.setTimestamp(tx.getTimestamp());
         m.setLeveldbKey("tx:" + tx.getId());
+        if (tx.getTransactionType() == TransactionType.STORE_FILE && tx.getPayload() != null) {
+            var filePayload = storeDataPayloadValidator.parse(tx.getPayload());
+            m.setFileHash(filePayload.getFileHash());
+            m.setPreviousTransactionId(filePayload.getPreviousTransactionId());
+        }
         return m;
     }
 

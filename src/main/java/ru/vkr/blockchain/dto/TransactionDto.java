@@ -30,6 +30,10 @@ public class TransactionDto {
     private String contentType;
     @JsonProperty("content_size")
     private Long contentSize;
+    @JsonProperty("file_hash")
+    private String fileHash;
+    @JsonProperty("previous_transaction_id")
+    private String previousTransactionId;
     private LocalDateTime timestamp;
     private String payload;
     private String signature;

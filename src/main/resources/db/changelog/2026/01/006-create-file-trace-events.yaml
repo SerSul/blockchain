@@ -1,0 +1,63 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20260604-file-trace-1
+      author: laplas7
+      changes:
+        - createTable:
+            tableName: file_trace_events
+            columns:
+              - column:
+                  name: id
+                  type: VARCHAR(36)
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_file_trace_events
+                    nullable: false
+              - column:
+                  name: event_type
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: file_hash
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: actor_address
+                  type: VARCHAR(66)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: transaction_id
+                  type: VARCHAR(255)
+              - column:
+                  name: recorded_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+              - column:
+                  name: origin_node
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+  - changeSet:
+      id: 20260604-file-trace-2
+      author: laplas7
+      changes:
+        - createIndex:
+            tableName: file_trace_events
+            indexName: idx_trace_file_hash
+            columns:
+              - column:
+                  name: file_hash
+  - changeSet:
+      id: 20260604-file-trace-3
+      author: laplas7
+      changes:
+        - createIndex:
+            tableName: file_trace_events
+            indexName: idx_trace_recorded_at
+            columns:
+              - column:
+                  name: recorded_at

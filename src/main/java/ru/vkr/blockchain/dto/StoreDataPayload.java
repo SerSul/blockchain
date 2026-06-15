@@ -24,6 +24,9 @@ public class StoreDataPayload {
     @JsonProperty("objectKey")
     private String objectKey;
 
+    @JsonProperty("previous_transaction_id")
+    private String previousTransactionId;
+
     public boolean isFileReference() {
         return fileHash != null && !fileHash.isBlank();
     }

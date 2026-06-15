@@ -8,12 +8,17 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import ru.vkr.blockchain.dto.BlockDto;
+import ru.vkr.blockchain.dto.FileTraceDto;
+import ru.vkr.blockchain.dto.FileTraceEventDto;
 import ru.vkr.blockchain.dto.PageResponse;
 import ru.vkr.blockchain.dto.TransactionDto;
 import ru.vkr.blockchain.domain.entity.BlockMetadata;
 import ru.vkr.blockchain.service.BlockQueryService;
+import ru.vkr.blockchain.service.FileTraceService;
 import ru.vkr.blockchain.service.NetworkOverviewService;
 import ru.vkr.blockchain.service.TransactionQueryService;
+
+import ru.vkr.blockchain.domain.model.enums.TransactionType;
 
 import java.util.Optional;
 
@@ -25,6 +30,7 @@ public class BlockExplorerController {
     private final BlockQueryService blockQueryService;
     private final TransactionQueryService transactionQueryService;
     private final NetworkOverviewService networkOverviewService;
+    private final FileTraceService fileTraceService;
 
     @GetMapping({"", "/"})
     public String root() {
@@ -117,6 +123,38 @@ public class BlockExplorerController {
         if (tx.get().getBlockHash() != null) {
             model.addAttribute("blockLink", tx.get().getBlockHash());
         }
+        if (tx.get().getTransactionType() == TransactionType.STORE_FILE && tx.get().getPayload() != null) {
+            fileTraceService.extractFileHashFromStorePayload(tx.get().getPayload())
+                    .ifPresent(hash -> model.addAttribute("fileHash", hash));
+            if (tx.get().getPreviousTransactionId() == null) {
+                fileTraceService.extractPreviousTransactionId(tx.get().getPayload())
+                        .ifPresent(prevTransactionId -> tx.get().setPreviousTransactionId(prevTransactionId));
+            }
+        }
         return "explorer/transaction-detail";
+    }
+
+    @GetMapping("/trace")
+    public String traceIndex(
+            @RequestParam(required = false) String fileHash,
+            Model model) {
+        if (fileHash != null && fileHash.length() == 64) {
+            return "redirect:/explorer/files/" + fileHash + "/trace";
+        }
+        model.addAttribute("recentEvents", fileTraceService.listRecent(50));
+        return "explorer/file-trace-index";
+    }
+
+    @GetMapping("/files/{fileHash}/trace")
+    public String fileTrace(@PathVariable String fileHash, Model model) {
+        try {
+            FileTraceDto trace = fileTraceService.getFileTrace(fileHash);
+            model.addAttribute("trace", trace);
+            model.addAttribute("fileHash", fileHash);
+        } catch (Exception e) {
+            model.addAttribute("error", e.getMessage());
+            model.addAttribute("fileHash", fileHash);
+        }
+        return "explorer/file-trace-detail";
     }
 }

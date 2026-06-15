@@ -12,13 +12,6 @@ import java.util.List;
 
 public interface TransactionMetadataRepository extends JpaRepository<TransactionMetadata, String>, JpaSpecificationExecutor<TransactionMetadata> {
 
-    List<TransactionMetadata> findByBlockHash(String blockHash);
-
-    Page<TransactionMetadata> findByBlockHash(String blockHash, Pageable pageable);
-
-    Page<TransactionMetadata> findBySenderId(String senderId, Pageable pageable);
-
-    Page<TransactionMetadata> findByStatus(TransactionStatus status, Pageable pageable);
-
-    Page<TransactionMetadata> findByTransactionType(TransactionType transactionType, Pageable pageable);
+    List<TransactionMetadata> findByFileHashAndTransactionTypeOrderByTimestampAsc(
+            String fileHash, TransactionType transactionType);
 }

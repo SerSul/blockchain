@@ -9,6 +9,7 @@ import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.stereotype.Component;
 import ru.vkr.blockchain.annotations.RequireRole;
 import ru.vkr.blockchain.dto.CreateTransactionRequest;
+import ru.vkr.blockchain.dto.RecordDownloadRequest;
 import ru.vkr.blockchain.domain.entity.AuditLog;
 import ru.vkr.blockchain.domain.model.enums.AccountRole;
 import ru.vkr.blockchain.repository.AccountRepository;
@@ -84,8 +85,11 @@ public class RoleCheckAspect {
 
     private String extractCreatorPublicKey(Object[] args) {
         for (Object arg : args) {
-            if (arg instanceof CreateTransactionRequest) {
-                return ((CreateTransactionRequest) arg).getCreatorPublicKey();
+            if (arg instanceof CreateTransactionRequest request) {
+                return request.getCreatorPublicKey();
+            }
+            if (arg instanceof RecordDownloadRequest request) {
+                return request.getCreatorPublicKey();
             }
         }
         return null;

@@ -179,16 +179,23 @@ class BlockchainClient:
         tx = self.build_signed_tx(user_key, "STORE_DATA", payload_obj)
         self.post("/api/transactions/store", tx)
 
-    def store_file(self, user_key, file_path: Path, file_name: str | None = None) -> str:
+    def store_file(
+        self,
+        user_key,
+        file_path: Path,
+        file_name: str | None = None,
+        previous_transaction_id: str | None = None,
+    ) -> tuple[str, str | None]:
         import hashlib
 
         path = Path(file_path)
         data = path.read_bytes()
         file_hash = hashlib.sha256(data).hexdigest()
         name = file_name or path.name
-        payload = compact_json(
-            {"fileName": name, "fileHash": file_hash, "size": len(data)}
-        )
+        payload_obj: dict = {"fileName": name, "fileHash": file_hash, "size": len(data)}
+        if previous_transaction_id:
+            payload_obj["previous_transaction_id"] = previous_transaction_id
+        payload = compact_json(payload_obj)
         signature = sign_utf8(payload, user_key)
         public_b64 = public_key_to_base64(user_key.public_key())
         with path.open("rb") as f:
@@ -205,9 +212,27 @@ class BlockchainClient:
             )
         if r.status_code != 200:
             raise ApiError(r.text, r.status_code, r.text)
-        return file_hash
+        body = r.json()
+        data = body.get("data") or {}
+        tx_id = data.get("transaction_id") if isinstance(data, dict) else None
+        return file_hash, tx_id
 
-    def download_file(self, file_hash: str, out_path: Path) -> Path:
+    def record_download(self, user_key, file_hash: str, source_transaction_id: str | None = None) -> None:
+        payload_obj: dict = {"file_hash": file_hash}
+        if source_transaction_id:
+            payload_obj["source_transaction_id"] = source_transaction_id
+        payload = compact_json(payload_obj)
+        body = {
+            "creator_public_key": public_key_to_base64(user_key.public_key()),
+            "file_hash": file_hash,
+            "signature": sign_utf8(payload, user_key),
+        }
+        if source_transaction_id:
+            body["source_transaction_id"] = source_transaction_id
+        self.post("/api/trace/downloads", body)
+
+    def download_file(self, user_key, file_hash: str, out_path: Path, source_transaction_id: str | None = None) -> Path:
+        self.record_download(user_key, file_hash, source_transaction_id)
         r = self.get_raw(f"/api/transactions/files/{file_hash}")
         if r.status_code != 200:
             raise ApiError(r.text, r.status_code, r.text)

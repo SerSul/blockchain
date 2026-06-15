@@ -49,10 +49,10 @@ public class TransactionController {
 
     /**
      * Загрузка файла в MinIO и регистрация STORE_FILE транзакции.
-     * payload — JSON: {"fileName":"...", "fileHash":"<sha256 hex>", "size":123}
+     * payload — JSON: {"fileName":"...", "fileHash":"<sha256>", "size":123, "previous_transaction_id":"<optional>"}
      */
     @PostMapping(value = "/store-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<String>> storeFile(
+    public ResponseEntity<ApiResponse<java.util.Map<String, String>>> storeFile(
             @RequestParam("file") MultipartFile file,
             @RequestParam("creator_public_key") String creatorPublicKey,
             @RequestParam("payload") String payload,
@@ -68,8 +68,11 @@ public class TransactionController {
         );
 
         log.info("API storeFile fileName={}, size={}", file.getOriginalFilename(), file.getSize());
-        fileStorageService.storeFile(request, file);
-        return ResponseEntity.ok(ApiResponse.success("File uploaded and STORE_FILE transaction added to pending pool"));
+        String transactionId = fileStorageService.storeFile(request, file);
+        return ResponseEntity.ok(ApiResponse.success(java.util.Map.of(
+                "transaction_id", transactionId,
+                "message", "File uploaded and STORE_FILE transaction added to pending pool"
+        )));
     }
 
     @GetMapping("/files/{fileHash}")

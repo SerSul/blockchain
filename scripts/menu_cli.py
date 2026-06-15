@@ -46,6 +46,7 @@ class MenuApp:
         self.cfg = load()
         self.client = BlockchainClient(self.cfg["base_url"])
         self._last_file_hash: str | None = None
+        self._last_tx_id: str | None = None
         self._last_user_pub: str | None = None
         self._last_user_priv = None
 
@@ -157,15 +158,19 @@ class MenuApp:
     def act_store_file(self) -> None:
         uk = self.user_key()
         path = Path(prompt("путь к файлу"))
-        h = self.client.store_file(uk, path)
+        prev = prompt("previous_transaction_id (пусто = первая версия)", "") or None
+        h, tx_id = self.client.store_file(uk, path, previous_transaction_id=prev)
         self._last_file_hash = h
-        print(f"STORE_FILE → pending, fileHash={h}")
+        self._last_tx_id = tx_id
+        print(f"STORE_FILE → pending, fileHash={h}, txId={tx_id or '—'}")
 
     def act_download_file(self) -> None:
         h = prompt("fileHash (sha256 hex)", self._last_file_hash or "")
+        src = prompt("source_transaction_id (опц.)", getattr(self, "_last_tx_id", None) or "")
         out = Path(prompt("куда сохранить", f"download_{h[:8]}.bin"))
-        self.client.download_file(h, out)
-        print(f"Сохранено: {out}")
+        uk = self.user_key()
+        self.client.download_file(uk, h, out, source_transaction_id=src or None)
+        print(f"Скачивание записано (off-chain), файл: {out}")
 
     def act_prepare_block(self) -> None:
         ids_raw = prompt("transaction_ids через запятую (пусто = все pending)", "")

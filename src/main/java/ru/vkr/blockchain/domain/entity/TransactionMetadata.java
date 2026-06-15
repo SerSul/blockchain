@@ -15,7 +15,8 @@ import java.time.LocalDateTime;
         @Index(name = "idx_block_hash", columnList = "block_hash"),
         @Index(name = "idx_transaction_status", columnList = "status"),
         @Index(name = "idx_transaction_timestamp", columnList = "timestamp"),
-        @Index(name = "idx_content_type", columnList = "content_type")
+        @Index(name = "idx_content_type", columnList = "content_type"),
+        @Index(name = "idx_tx_file_hash", columnList = "file_hash")
 })
 @Data
 @NoArgsConstructor
@@ -48,6 +49,12 @@ public class TransactionMetadata {
 
     @Column(name = "content_size")
     private Long contentSize;
+
+    @Column(name = "file_hash", length = 64)
+    private String fileHash;
+
+    @Column(name = "previous_transaction_id")
+    private String previousTransactionId;
 
     @Column(name = "timestamp", nullable = false)
     private LocalDateTime timestamp;

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head th:replace="~{fragments/explorer :: head ('Прослеживаемость файлов')}">
+    <title>Прослеживаемость</title>
+</head>
+<body>
+<div th:replace="~{fragments/explorer :: nav}"></div>
+<main>
+    <h1>Прослеживаемость файлов</h1>
+    <p class="hint">Скачивания — off-chain журнал. Версии — поле previous_transaction_id в STORE_FILE.</p>
+
+    <div class="card">
+        <form class="filters" th:action="@{/explorer/trace}" method="get">
+            <label>fileHash (SHA-256, 64 hex)
+                <input name="fileHash" type="text" placeholder="abc…" minlength="64" maxlength="64" style="min-width: 420px;"/>
+            </label>
+            <button class="btn" type="submit">Открыть</button>
+        </form>
+    </div>
+
+    <h2 style="font-size:1.1rem; margin:1.5rem 0 0.75rem;">Последние события</h2>
+    <div class="card empty" th:if="${recentEvents == null || recentEvents.isEmpty()}">
+        Событий пока нет. Запись через API <span class="mono">POST /api/trace/downloads</span> или CLI.
+    </div>
+    <div class="card" th:if="${recentEvents != null && !recentEvents.isEmpty()}">
+        <table>
+            <thead>
+            <tr>
+                <th>Время</th>
+                <th>Тип</th>
+                <th>fileHash</th>
+                <th>Кто</th>
+                <th>Узел</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="e : ${recentEvents}">
+                <td th:text="${e.recordedAt != null ? #temporals.format(e.recordedAt, 'yyyy-MM-dd HH:mm:ss') : '—'}">—</td>
+                <td><span class="badge" th:text="${e.eventType}">—</span></td>
+                <td>
+                    <a class="hash-link mono"
+                       th:href="@{/explorer/files/{h}/trace(h=${e.fileHash})}"
+                       th:text="${#strings.substring(e.fileHash,0,12)} + '…'">—</a>
+                </td>
+                <td class="mono muted" th:text="${#strings.substring(e.actorAddress,0,14)} + '…'">—</td>
+                <td class="muted" th:text="${e.originNode}">—</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+</body>
+</html>

@@ -5,8 +5,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 import ru.vkr.blockchain.config.MinioProperties;
+import ru.vkr.blockchain.domain.entity.TransactionMetadata;
+import ru.vkr.blockchain.domain.model.Transaction;
+import ru.vkr.blockchain.domain.model.enums.TransactionStatus;
+import ru.vkr.blockchain.domain.model.enums.TransactionType;
 import ru.vkr.blockchain.dto.StoreDataPayload;
 import ru.vkr.blockchain.exception.transaction.TransactionValidationException;
+import ru.vkr.blockchain.repository.PendingTransactionRepository;
+import ru.vkr.blockchain.repository.entity.TransactionMetadataRepository;
 
 @Component
 @RequiredArgsConstructor
@@ -15,6 +21,8 @@ public class StoreDataPayloadValidator {
     private final ObjectMapper objectMapper;
     private final MinioProperties minioProperties;
     private final CryptoService cryptoService;
+    private final TransactionMetadataRepository transactionMetadataRepository;
+    private final PendingTransactionRepository pendingTransactionRepository;
 
     public StoreDataPayload parse(String payloadJson) {
         try {
@@ -25,7 +33,45 @@ public class StoreDataPayloadValidator {
     }
 
     public void validateFilePayload(String payloadJson) {
-        validateStructure(parse(payloadJson));
+        StoreDataPayload payload = parse(payloadJson);
+        validateStructure(payload);
+    }
+
+    public void validatePreviousTransaction(StoreDataPayload payload, String senderAddress) {
+        String previousId = payload.getPreviousTransactionId();
+        if (previousId == null || previousId.isBlank()) {
+            return;
+        }
+        transactionMetadataRepository.findById(previousId).ifPresentOrElse(
+                parent -> validateConfirmedParent(parent, senderAddress),
+                () -> validatePendingParent(previousId, senderAddress)
+        );
+    }
+
+    private void validateConfirmedParent(TransactionMetadata parent, String senderAddress) {
+        if (parent.getStatus() != TransactionStatus.CONFIRMED) {
+            throw new TransactionValidationException("previous_transaction_id must be confirmed");
+        }
+        if (parent.getTransactionType() != TransactionType.STORE_FILE) {
+            throw new TransactionValidationException("previous_transaction_id must reference STORE_FILE");
+        }
+        if (!senderAddress.equals(parent.getSenderId())) {
+            throw new TransactionValidationException("previous_transaction_id must belong to the same sender");
+        }
+    }
+
+    private void validatePendingParent(String previousId, String senderAddress) {
+        Transaction parent = pendingTransactionRepository.findAll().stream()
+                .filter(tx -> tx.getId().equals(previousId))
+                .findFirst()
+                .orElseThrow(() -> new TransactionValidationException(
+                        "previous_transaction_id not found: " + previousId));
+        if (parent.getTransactionType() != TransactionType.STORE_FILE) {
+            throw new TransactionValidationException("previous_transaction_id must reference STORE_FILE");
+        }
+        if (!senderAddress.equals(parent.getSenderId())) {
+            throw new TransactionValidationException("previous_transaction_id must belong to the same sender");
+        }
     }
 
     public StoreDataPayload validateUpload(MultipartFile file, String payloadJson) {

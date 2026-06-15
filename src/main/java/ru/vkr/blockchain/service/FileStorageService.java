@@ -22,7 +22,7 @@ public class FileStorageService {
     private final StoreDataPayloadValidator storeDataPayloadValidator;
 
     @RequireRole({AccountRole.USER, AccountRole.VALIDATOR})
-    public void storeFile(CreateTransactionRequest request, MultipartFile file) {
+    public String storeFile(CreateTransactionRequest request, MultipartFile file) {
         if (request.getTransactionType() != TransactionType.STORE_FILE) {
             throw new TransactionValidationException("transaction_type must be STORE_FILE");
         }
@@ -36,8 +36,10 @@ public class FileStorageService {
         request.setContentType(contentType);
 
         minioFileStorageService.upload(file, payload.resolveObjectKey(), contentType);
-        blockChainService.storeFile(request);
-        log.info("File registered in pending pool: fileHash={}, fileName={}", payload.getFileHash(), payload.getFileName());
+        String transactionId = blockChainService.storeFile(request);
+        log.info("File registered in pending pool: fileHash={}, fileName={}, txId={}",
+                payload.getFileHash(), payload.getFileName(), transactionId);
+        return transactionId;
     }
 
     public StoredFileDownload download(String fileHash) {

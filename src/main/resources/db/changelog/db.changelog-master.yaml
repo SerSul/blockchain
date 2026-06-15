@@ -5,3 +5,7 @@ databaseChangeLog:
       file: db/changelog/2026/01/004-create-blocks-metadata-table.yaml
   - include:
       file: db/changelog/2026/01/005-create-transactions-metadata-table.yaml
+  - include:
+      file: db/changelog/2026/01/006-create-file-trace-events.yaml
+  - include:
+      file: db/changelog/2026/01/007-add-store-file-chain-metadata.yaml

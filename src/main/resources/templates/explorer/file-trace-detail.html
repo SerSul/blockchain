@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head th:replace="~{fragments/explorer :: head ('Прослеживаемость файла')}">
+    <title>Файл</title>
+</head>
+<body>
+<div th:replace="~{fragments/explorer :: nav}"></div>
+<main>
+    <div class="back">
+        <a th:href="@{/explorer/trace}">← К прослеживаемости</a>
+    </div>
+
+    <h1>Прослеживаемость файла</h1>
+    <p class="mono muted" th:text="${fileHash}">—</p>
+
+    <div class="card empty" th:if="${error != null}">
+        <p th:text="${error}">Ошибка</p>
+    </div>
+
+    <th:block th:if="${trace != null}">
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Скачиваний</div>
+                <div class="stat-value" th:text="${trace.downloads != null ? trace.downloads.size() : 0}">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Версий (связей)</div>
+                <div class="stat-value" th:text="${trace.versionChain != null ? trace.versionChain.size() : 0}">0</div>
+            </div>
+        </div>
+
+        <h2 style="font-size:1.1rem;">Цепочка версий</h2>
+        <p class="hint">Из блокчейна: STORE_FILE с полем <span class="mono">previous_transaction_id</span> в payload.</p>
+        <div class="card empty" th:if="${trace.versionChain == null || trace.versionChain.isEmpty()}">
+            Версий не найдено (нет подтверждённых STORE_FILE с этим fileHash).
+        </div>
+        <div class="card" th:if="${trace.versionChain != null && !trace.versionChain.isEmpty()}">
+            <table>
+                <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Время</th>
+                    <th>Транзакция</th>
+                    <th>fileHash</th>
+                    <th>Предыдущая</th>
+                    <th>Отправитель</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="v, stat : ${trace.versionChain}">
+                    <td th:text="${stat.count}">1</td>
+                    <td th:text="${v.timestamp != null ? #temporals.format(v.timestamp, 'yyyy-MM-dd HH:mm:ss') : '—'}">—</td>
+                    <td>
+                        <a class="hash-link mono" th:href="@{/explorer/transactions/{id}(id=${v.id})}"
+                           th:text="${#strings.substring(v.id,0,8)} + '…'">—</a>
+                    </td>
+                    <td class="mono muted" th:text="${v.fileHash != null ? (#strings.substring(v.fileHash,0,12) + '…') : '—'}">—</td>
+                    <td>
+                        <a class="hash-link mono" th:if="${v.previousTransactionId != null}"
+                           th:href="@{/explorer/transactions/{id}(id=${v.previousTransactionId})}"
+                           th:text="${#strings.substring(v.previousTransactionId,0,8)} + '…'">—</a>
+                        <span th:if="${v.previousTransactionId == null}" class="muted">—</span>
+                    </td>
+                    <td class="mono muted" th:text="${#strings.substring(v.senderId,0,14)} + '…'">—</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2 style="font-size:1.1rem; margin-top:1.5rem;">История скачиваний</h2>
+        <div class="card empty" th:if="${trace.downloads == null || trace.downloads.isEmpty()}">
+            Скачиваний не зарегистрировано.
+        </div>
+        <div class="card" th:if="${trace.downloads != null && !trace.downloads.isEmpty()}">
+            <table>
+                <thead>
+                <tr>
+                    <th>Время</th>
+                    <th>Кто скачал</th>
+                    <th>Источник (tx)</th>
+                    <th>Узел</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="d : ${trace.downloads}">
+                    <td th:text="${d.recordedAt != null ? #temporals.format(d.recordedAt, 'yyyy-MM-dd HH:mm:ss') : '—'}">—</td>
+                    <td class="mono" th:text="${d.actorAddress}">—</td>
+                    <td>
+                        <a class="hash-link mono" th:if="${d.transactionId != null}"
+                           th:href="@{/explorer/transactions/{id}(id=${d.transactionId})}"
+                           th:text="${#strings.substring(d.transactionId,0,8)} + '…'">—</a>
+                        <span th:if="${d.transactionId == null}" class="muted">—</span>
+                    </td>
+                    <td class="muted" th:text="${d.originNode}">—</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </th:block>
+</main>
+</body>
+</html>

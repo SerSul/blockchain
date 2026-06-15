@@ -14,6 +14,7 @@ import ru.vkr.blockchain.domain.model.Transaction;
 import ru.vkr.blockchain.domain.model.enums.TransactionStatus;
 import ru.vkr.blockchain.dto.AccountSyncDto;
 import ru.vkr.blockchain.dto.BlockDto;
+import ru.vkr.blockchain.dto.FileTraceEventDto;
 import ru.vkr.blockchain.dto.NetworkJoinSnapshotDto;
 import ru.vkr.blockchain.dto.TransactionDto;
 import ru.vkr.blockchain.mapper.BlockMapper;
@@ -25,6 +26,7 @@ import ru.vkr.blockchain.repository.entity.TransactionMetadataRepository;
 import ru.vkr.blockchain.service.domain.BlockService;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -44,6 +46,7 @@ public class PeerSyncService {
     private final BlockchainBootstrapProperties bootstrapProperties;
     private final BlockMapper blockMapper;
     private final TransactionMapper transactionMapper;
+    private final FileTraceService fileTraceService;
     private final ObjectMapper objectMapper;
     private final RestClient restClient = RestClient.create();
 
@@ -87,6 +90,11 @@ public class PeerSyncService {
             } catch (Exception e) {
                 log.warn("Pending sync failed for {}: {}", peer, e.getMessage());
             }
+            try {
+                syncTraceFromPeer(peer);
+            } catch (Exception e) {
+                log.warn("Trace sync failed for {}: {}", peer, e.getMessage());
+            }
         }
         int localHeight = blockQueryService.getLatestMetadata().map(BlockMetadata::getHeight).orElse(-1);
         List<String> peersByHeight = peers.stream()
@@ -115,6 +123,11 @@ public class PeerSyncService {
                 syncPendingFromPeer(peer);
             } catch (Exception e) {
                 log.warn("Pending sync failed for {}: {}", peer, e.getMessage());
+            }
+            try {
+                syncTraceFromPeer(peer);
+            } catch (Exception e) {
+                log.warn("Trace sync failed for {}: {}", peer, e.getMessage());
             }
         }
         int maxRounds = 100;
@@ -213,6 +226,25 @@ public class PeerSyncService {
         if (imported > 0) {
             log.info("Pending sync imported {} tx from {}", imported, peerBaseUrl);
         }
+    }
+
+    private void syncTraceFromPeer(String peerBaseUrl) throws Exception {
+        LocalDateTime since = fileTraceService.syncCursorSince();
+        int limit = Math.max(50, bootstrapProperties.getSyncBatchSize());
+        String body = restClient.get()
+                .uri(peerBaseUrl + "/api/trace/events?since={since}&limit={limit}", since, limit)
+                .retrieve()
+                .body(String.class);
+        if (body == null || body.isBlank()) {
+            return;
+        }
+        JsonNode root = objectMapper.readTree(body);
+        JsonNode data = root.path("data");
+        if (!data.isArray() || data.isEmpty()) {
+            return;
+        }
+        List<FileTraceEventDto> events = objectMapper.readerForListOf(FileTraceEventDto.class).readValue(data);
+        fileTraceService.importEvents(events);
     }
 
     private void syncOnePeer(String peerBaseUrl) throws Exception {

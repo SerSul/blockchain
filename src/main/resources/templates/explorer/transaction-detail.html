@@ -47,6 +47,19 @@
                 <dd th:text="${tx.timestamp != null ? #temporals.format(tx.timestamp, 'yyyy-MM-dd HH:mm:ss') : '—'}">—</dd>
                 <dt>Payload</dt>
                 <dd class="mono" th:text="${tx.payload != null ? tx.payload : '—'}">—</dd>
+                <dt th:if="${tx.previousTransactionId != null}">Предыдущая версия</dt>
+                <dd th:if="${tx.previousTransactionId != null}">
+                    <a class="hash-link mono" th:href="@{/explorer/transactions/{id}(id=${tx.previousTransactionId})}"
+                       th:text="${tx.previousTransactionId}">—</a>
+                </dd>
+                <th:block th:if="${fileHash != null}">
+                    <dt>Прослеживаемость</dt>
+                    <dd>
+                        <a class="hash-link" th:href="@{/explorer/files/{h}/trace(h=${fileHash})}">
+                            скачивания и версии файла
+                        </a>
+                    </dd>
+                </th:block>
             </dl>
         </div>
     </th:block>
